@@ -1,0 +1,75 @@
+name: Automation Suite
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      test_env:
+        description: 'Target environment'
+        default: 'dev'
+        type: choice
+        options: [dev, staging, prod]
+
+jobs:
+  web-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright test --project=${{ matrix.browser }}
+        env:
+          TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-report-${{ matrix.browser }}
+          path: reports/html
+
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:api
+        env:
+          TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-report
+          path: reports/api-html
+
+  mobile-tests:
+    runs-on: ubuntu-latest
+    # Points at BrowserStack/Sauce Labs in CI — no self-hosted device farm needed to scale.
+    env:
+      CLOUD_PROVIDER: browserstack
+      CLOUD_USER: ${{ secrets.BROWSERSTACK_USER }}
+      CLOUD_KEY: ${{ secrets.BROWSERSTACK_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run test:mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-report
+          path: reports/allure-results

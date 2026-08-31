@@ -1,0 +1,10 @@
+node_modules/
+dist/
+reports/
+.env
+.env.*
+!.env.dev
+test-results/
+allure-results/
+allure-report/
+*.log
