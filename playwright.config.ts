@@ -1,8 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config } from './src/config/env.config';
 
+// Each site gets its own testDir + baseURL, crossed with the browser matrix,
+// so the two portals run as fully independent suites sharing one framework.
+const sites = [
+  { key: 'medco', testDir: './src/web/medco/tests', baseURL: config.medcoWebBaseUrl },
+  { key: 'massive-market', testDir: './src/web/massive-market/tests', baseURL: config.massiveMarketWebBaseUrl },
+  { key: 'odiobuk', testDir: './src/web/odiobuk/tests', baseURL: config.odiobukWebBaseUrl },
+];
+
+const browsers = [
+  { key: 'chromium', use: devices['Desktop Chrome'] },
+  { key: 'firefox', use: devices['Desktop Firefox'] },
+  { key: 'webkit', use: devices['Desktop Safari'] },
+  { key: 'mobile-chrome', use: devices['Pixel 7'] },
+];
+
 export default defineConfig({
-  testDir: './src/web/tests',
   timeout: config.timeouts.default * 2,
   fullyParallel: true,
   workers: config.parallelWorkers,
@@ -13,16 +27,18 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: config.webBaseUrl,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    // Add mobile web emulation projects as needed:
-    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
-  ],
+  projects: sites.flatMap((site) =>
+    browsers.map((browser) => ({
+      name: `${site.key}-${browser.key}`,
+      testDir: site.testDir,
+      use: {
+        ...browser.use,
+        baseURL: site.baseURL,
+      },
+    }))
+  ),
 });
