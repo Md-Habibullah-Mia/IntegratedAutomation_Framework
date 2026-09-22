@@ -24,6 +24,18 @@ jobs:
       matrix:
         site: [medco, massive-market, odiobuk]
         browser: [chromium, firefox, webkit]
+        # massive-market's admin/marketer coverage performs real, one-shot
+        # state changes (approving a real pending request, submitting a real
+        # merchant application) against a single shared live account —
+        # running it 3x in the same matrix (once per browser) makes the 2nd
+        # and 3rd runs fail on stale-state assumptions (e.g. "the request is
+        # still pending"), since the 1st run already consumed it. Restrict
+        # it to chromium only until those suites are made safe to repeat.
+        exclude:
+          - site: massive-market
+            browser: firefox
+          - site: massive-market
+            browser: webkit
     env:
       TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
       REGISTRATION_TEST_PASSWORD: ${{ secrets.REGISTRATION_TEST_PASSWORD }}
