@@ -59,14 +59,13 @@ jobs:
 
   mobile-tests:
     runs-on: ubuntu-latest
-    # Disabled until BROWSERSTACK_USER/BROWSERSTACK_KEY are added under repo
-    # Settings > Secrets and variables > Actions — remove this line once set.
-    if: false
-    # Points at BrowserStack/Sauce Labs in CI — no self-hosted device farm needed to scale.
+    # Free: boots its own Android emulator on the runner (KVM-accelerated,
+    # standard 1x-cost Linux minutes) instead of paying for BrowserStack/Sauce
+    # Labs. CLOUD_PROVIDER stays 'local' (env.config.ts's default), so
+    # wdio.conf.ts's own 'appium' service starts the Appium server and the
+    # emulator-runner step below provides the device it attaches to.
     env:
-      CLOUD_PROVIDER: browserstack
-      CLOUD_USER: ${{ secrets.BROWSERSTACK_USER }}
-      CLOUD_KEY: ${{ secrets.BROWSERSTACK_KEY }}
+      CLOUD_PROVIDER: local
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,7 +73,35 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run test:mobile
+      # KVM hardware acceleration — without this the emulator falls back to
+      # software rendering and is too slow to be usable in CI.
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # apps/memorywave_v2.apk is gitignored (large binary build output), so
+      # it isn't in the checkout. Pulled instead from a GitHub Release asset
+      # tagged "mobile-apk" — re-upload a new memorywave_v2.apk to that same
+      # release (or a new one re-tagged "mobile-apk") whenever the test
+      # build changes; no workflow edit needed. Uses the built-in
+      # GITHUB_TOKEN, so no extra secret to configure.
+      - name: Download test APK from the "mobile-apk" release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p apps
+          gh release download mobile-apk --repo "${{ github.repository }}" --pattern "*.apk" --dir apps --clobber
+          mv apps/*.apk apps/memorywave_v2.apk
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          avd-name: Odiobuk_Pixel_7_API_34
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: npm run test:mobile
       - uses: actions/upload-artifact@v4
         if: always()
         with:
