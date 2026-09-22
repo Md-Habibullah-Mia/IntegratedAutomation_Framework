@@ -16,9 +16,26 @@ jobs:
   web-tests:
     runs-on: ubuntu-latest
     strategy:
+      # false: a real, expected failure (odiobuk's SEC-001 security repro
+      # always fails until that backend bug is patched) must not cancel the
+      # rest of the matrix — the default fail-fast:true was doing exactly
+      # that, so medco/massive-market and the other browsers never even ran.
+      fail-fast: false
       matrix:
         site: [medco, massive-market, odiobuk]
         browser: [chromium, firefox, webkit]
+    env:
+      TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
+      REGISTRATION_TEST_PASSWORD: ${{ secrets.REGISTRATION_TEST_PASSWORD }}
+      TEST_PHONE: ${{ secrets.TEST_PHONE }}
+      LOGIN_TEST_EMAIL: ${{ secrets.LOGIN_TEST_EMAIL }}
+      LOGIN_TEST_PASSWORD: ${{ secrets.LOGIN_TEST_PASSWORD }}
+      MASSIVE_MARKET_ADMIN_EMAIL: ${{ secrets.MASSIVE_MARKET_ADMIN_EMAIL }}
+      MASSIVE_MARKET_ADMIN_PASSWORD: ${{ secrets.MASSIVE_MARKET_ADMIN_PASSWORD }}
+      MOBILE_TEST_EMAIL: ${{ secrets.MOBILE_TEST_EMAIL }}
+      MOBILE_TEST_PASSWORD: ${{ secrets.MOBILE_TEST_PASSWORD }}
+      MOBILE_TEST_ADMIN_EMAIL: ${{ secrets.MOBILE_TEST_ADMIN_EMAIL }}
+      MOBILE_TEST_ADMIN_PASSWORD: ${{ secrets.MOBILE_TEST_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,8 +48,6 @@ jobs:
       # journeys (odiobuk TC-013/TC-015) — those run on their own via
       # `--grep @slow --workers=1`, not on every push/PR.
       - run: npx playwright test --project=${{ matrix.site }}-${{ matrix.browser }} --grep-invert "@slow"
-        env:
-          TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -41,6 +56,14 @@ jobs:
 
   api-tests:
     runs-on: ubuntu-latest
+    env:
+      TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
+      REGISTRATION_TEST_PASSWORD: ${{ secrets.REGISTRATION_TEST_PASSWORD }}
+      TEST_PHONE: ${{ secrets.TEST_PHONE }}
+      LOGIN_TEST_EMAIL: ${{ secrets.LOGIN_TEST_EMAIL }}
+      LOGIN_TEST_PASSWORD: ${{ secrets.LOGIN_TEST_PASSWORD }}
+      MASSIVE_MARKET_ADMIN_EMAIL: ${{ secrets.MASSIVE_MARKET_ADMIN_EMAIL }}
+      MASSIVE_MARKET_ADMIN_PASSWORD: ${{ secrets.MASSIVE_MARKET_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,8 +72,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:api
-        env:
-          TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -66,6 +87,10 @@ jobs:
     # emulator-runner step below provides the device it attaches to.
     env:
       CLOUD_PROVIDER: local
+      MOBILE_TEST_EMAIL: ${{ secrets.MOBILE_TEST_EMAIL }}
+      MOBILE_TEST_PASSWORD: ${{ secrets.MOBILE_TEST_PASSWORD }}
+      MOBILE_TEST_ADMIN_EMAIL: ${{ secrets.MOBILE_TEST_ADMIN_EMAIL }}
+      MOBILE_TEST_ADMIN_PASSWORD: ${{ secrets.MOBILE_TEST_ADMIN_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
