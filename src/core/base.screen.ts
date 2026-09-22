@@ -24,6 +24,12 @@ export abstract class BaseMobileScreen {
   async type(selector: string, text: string) {
     const el = await this.driver.$(selector);
     await el.waitForDisplayed({ timeout: config.timeouts.default });
+    // Flutter's text-input plugin only wires up once the field is
+    // actually focused via a real tap; calling setValue() without one
+    // first silently no-ops (the field stays empty) — found by comparing
+    // an ADB-only manual run (which taps before typing) against a raw
+    // Appium setValue() run against the same screen.
+    await el.click();
     await el.setValue(text);
   }
 
@@ -35,6 +41,46 @@ export abstract class BaseMobileScreen {
   async isVisible(selector: string): Promise<boolean> {
     const el = await this.driver.$(selector);
     return el.isDisplayed().catch(() => false);
+  }
+
+  // isVisible() checks the current frame instantly; after a navigation
+  // the destination screen can take a moment to render (transition
+  // animation, first data fetch), so a same-instant check can read false
+  // even though the screen arrives a few hundred ms later. Use this
+  // instead whenever the check follows a tap that navigates.
+  async waitVisible(selector: string, timeout = config.timeouts.default): Promise<boolean> {
+    const el = await this.driver.$(selector);
+    return el.waitForDisplayed({ timeout }).catch(() => false);
+  }
+
+  // Some full-width list rows (e.g. the PDF card on Home) report
+  // accessibility bounds spanning the whole row, but the actual Flutter
+  // gesture detector only covers the leading icon+text — the trailing
+  // empty space is a dead zone. A plain click() taps the bounds' center,
+  // which lands there and silently does nothing (no error, no
+  // navigation). Confirmed by reproducing with a raw adb tap at the
+  // reported center before concluding it wasn't an Appium-side bug.
+  // Use this instead for any row that spans (most of) the screen width.
+  async clickNearStart(selector: string, xOffsetPx = 60) {
+    const el = await this.driver.$(selector);
+    await el.waitForDisplayed({ timeout: config.timeouts.default });
+    const location = await el.getLocation();
+    const size = await el.getSize();
+    const x = location.x + Math.min(xOffsetPx, Math.max(size.width - 5, 1));
+    const y = location.y + size.height / 2;
+    await this.driver.performActions([
+      {
+        type: 'pointer',
+        id: 'finger1',
+        parameters: { pointerType: 'touch' },
+        actions: [
+          { type: 'pointerMove', duration: 0, x, y },
+          { type: 'pointerDown', button: 0 },
+          { type: 'pause', duration: 80 },
+          { type: 'pointerUp', button: 0 },
+        ],
+      },
+    ]);
   }
 
   async swipe(direction: 'up' | 'down') {

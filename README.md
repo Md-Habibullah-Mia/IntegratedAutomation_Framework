@@ -19,11 +19,20 @@ A single, scalable framework for automating **web**, **mobile (iOS/Android)**, a
 src/
   config/     # env-aware config (URLs, devices, timeouts, cloud creds)
   core/       # BaseWebPage, BaseMobileScreen, ApiClient, logger — shared foundation
-  web/        # Playwright: pages/ (POM) + tests/
+  web/        # Playwright, one subfolder per site — each with its own pages/ (POM) + tests/
+    medco/
+    massive-market/
   mobile/     # Appium/WebdriverIO: screens/ (Screen Object Model) + tests/
   api/        # Playwright request-based API tests
   utils/      # shared test data / helpers used by both web and mobile specs
 ```
+
+Web tests target two independent portals (`medco`, `massive-market`), each with its own base URL
+(`MEDCO_WEB_BASE_URL` / `MASSIVE_MARKET_WEB_BASE_URL` in `.env.<env>`) and its own `testDir`. In
+`playwright.config.ts` this is expressed as one Playwright project per site × browser combo (e.g.
+`medco-chromium`, `massive-market-webkit`), so the suites run fully independently while sharing the
+same `core` layer, config, and reporting pipeline. `BaseWebPage.goto()` uses relative paths and relies
+on each project's own `baseURL` rather than a single global one.
 
 `BaseWebPage` and `BaseMobileScreen` expose the **same method shape** (`click`, `type`, `isVisible`, `textOf`) so an engineer moving between web and mobile suites isn't learning two idioms — only the underlying driver differs.
 
@@ -42,7 +51,9 @@ Copy `.env.dev` to `.env.staging` / `.env.prod` as needed and adjust values.
 ## Running tests
 
 ```bash
-npm run test:web          # all browsers, parallel
+npm run test:web          # both sites, all browsers, parallel
+npm run test:web:medco             # medco only, all browsers
+npm run test:web:massive-market    # massive-market only, all browsers
 npm run test:web:ui       # Playwright UI mode (debugging)
 npm run test:api          # API suite only
 npm run test:mobile       # Appium suite (needs emulator/device or cloud creds)
@@ -52,7 +63,7 @@ TEST_ENV=staging npm run test:web   # run against staging
 
 ## Scaling this further
 
-1. **New web page** → add a class in `src/web/pages` extending `BaseWebPage`, add a spec in `src/web/tests`.
+1. **New web page** → add a class in `src/web/<site>/pages` extending `BaseWebPage`, add a spec in `src/web/<site>/tests`. **New site** → add a `src/web/<site>/{pages,tests}` folder, a `<SITE>_WEB_BASE_URL` entry in `.env.<env>` + `env.config.ts`, and a `{ key, testDir, baseURL }` entry in the `sites` array in `playwright.config.ts`.
 2. **New mobile screen** → same pattern in `src/mobile/screens` extending `BaseMobileScreen`.
 3. **New environment** → add `.env.<name>`, run with `TEST_ENV=<name>`.
 4. **More parallelism** → raise `PARALLEL_WORKERS`, or fan out CI matrix (already sharded by browser; extend similarly for mobile device matrix).

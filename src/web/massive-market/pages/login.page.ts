@@ -25,11 +25,6 @@ export class LoginPage {
     await this.email.pressSequentially(email, { delay: 40 });
     await this.password.pressSequentially(password, { delay: 40 });
 
-    // The app validates controlled inputs asynchronously, so give the form a
-    // brief moment to update before checking if the CTA is enabled.
-    await this.page.waitForTimeout(600);
-
-    await expect(this.loginButton).toBeEnabled({ timeout: 15000 });
     await this.loginButton.click();
   }
 }

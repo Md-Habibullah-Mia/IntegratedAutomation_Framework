@@ -4,7 +4,7 @@ import { logger } from './logger';
 
 /**
  * BaseWebPage
- * Every page object in src/web/pages extends this. Keeps common,
+ * Every page object under src/web/<site>/pages extends this. Keeps common,
  * resilient interactions (click, type, wait) in one place so that
  * flaky-selector fixes or retry logic only need to change once.
  */
@@ -12,9 +12,8 @@ export abstract class BaseWebPage {
   constructor(protected page: Page) {}
 
   async goto(path = '') {
-    const url = `${config.webBaseUrl}${path}`;
-    logger.info(`Navigating to ${url}`);
-    await this.page.goto(url, { timeout: config.timeouts.navigation });
+    logger.info(`Navigating to ${path || '/'}`);
+    await this.page.goto(path, { timeout: config.timeouts.navigation });
   }
 
   protected locator(selector: string): Locator {

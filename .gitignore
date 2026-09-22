@@ -8,3 +8,5 @@ test-results/
 allure-results/
 allure-report/
 *.log
+apps/*.apk
+apps/*.ipa

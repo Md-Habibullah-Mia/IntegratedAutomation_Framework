@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
+        site: [medco, massive-market, odiobuk]
         browser: [chromium, firefox, webkit]
     steps:
       - uses: actions/checkout@v4
@@ -26,13 +27,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - run: npx playwright test --project=${{ matrix.browser }}
+      # --grep-invert '@slow' skips the multi-minute narration/generation
+      # journeys (odiobuk TC-013/TC-015) — those run on their own via
+      # `--grep @slow --workers=1`, not on every push/PR.
+      - run: npx playwright test --project=${{ matrix.site }}-${{ matrix.browser }} --grep-invert "@slow"
         env:
           TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: web-report-${{ matrix.browser }}
+          name: web-report-${{ matrix.site }}-${{ matrix.browser }}
           path: reports/html
 
   api-tests:
@@ -55,6 +59,9 @@ jobs:
 
   mobile-tests:
     runs-on: ubuntu-latest
+    # Disabled until BROWSERSTACK_USER/BROWSERSTACK_KEY are added under repo
+    # Settings > Secrets and variables > Actions — remove this line once set.
+    if: false
     # Points at BrowserStack/Sauce Labs in CI — no self-hosted device farm needed to scale.
     env:
       CLOUD_PROVIDER: browserstack

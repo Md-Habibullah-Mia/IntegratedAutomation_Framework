@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { LoginPage } from '@web/pages/login.page';
+import { LoginPage } from '@web/medco/pages/login.page';
 import { testUsers } from '@utils/data-provider';
 
-test.describe('Login', () => {
+test.describe('Medco Login', () => {
   let loginPage: LoginPage;
 
   test.beforeEach(async ({ page }) => {

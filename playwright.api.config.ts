@@ -12,7 +12,7 @@ export default defineConfig({
     ['list'],
   ],
   use: {
-    baseURL: config.apiBaseUrl,
+    baseURL: config.odiobukApiBaseUrl,
     extraHTTPHeaders: { Accept: 'application/json' },
   },
 });
