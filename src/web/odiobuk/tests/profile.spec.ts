@@ -5,16 +5,34 @@ import { ProfilePage } from '@web/odiobuk/pages/profile.page';
 
 const PASSWORD = 'Str0ngP@ssword2026!';
 
-test.describe('Smoke - Profile (You)', () => {
-  test('TC-011 - Updating the display name persists across a reload', async ({ page }) => {
-    const email = `qa_profile_${Date.now()}@test.com`;
+// Single registration/login for the whole file. TC-011 renames the account
+// and TC-012 only checks the delete button's enable state (never actually
+// clicks delete), so sharing one account is safe — nothing here conflicts.
+test.describe.serial('Smoke - Profile (You)', () => {
+  let context: import('@playwright/test').BrowserContext;
+  let page: import('@playwright/test').Page;
+  let profilePage: ProfilePage;
+  let email: string;
+
+  test.beforeAll(async ({ browser }) => {
+    context = await browser.newContext();
+    page = await context.newPage();
+
+    email = `qa_profile_${Date.now()}@test.com`;
     const registrationPage = new RegistrationPage(page);
     const homePage = new HomePage(page);
     await registrationPage.goto();
     await registrationPage.register('QA Profile', email, PASSWORD);
     await homePage.verifyLoaded();
 
-    const profilePage = new ProfilePage(page);
+    profilePage = new ProfilePage(page);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('TC-011 - Updating the display name persists across a reload', async () => {
     await profilePage.goto();
     await profilePage.verifyLoaded();
 
@@ -28,15 +46,7 @@ test.describe('Smoke - Profile (You)', () => {
     await expect(profilePage.displayNameInput).toHaveValue(newName);
   });
 
-  test('TC-012 - Delete account only enables once "DELETE" is typed exactly', async ({ page }) => {
-    const email = `qa_profiledelete_${Date.now()}@test.com`;
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA Profile Delete', email, PASSWORD);
-    await homePage.verifyLoaded();
-
-    const profilePage = new ProfilePage(page);
+  test('TC-012 - Delete account only enables once "DELETE" is typed exactly', async () => {
     await profilePage.goto();
     await profilePage.verifyLoaded();
 

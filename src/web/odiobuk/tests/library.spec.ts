@@ -6,20 +6,33 @@ import { SavedPage } from '@web/odiobuk/pages/saved.page';
 
 const PASSWORD = 'Str0ngP@ssword2026!';
 
-async function registerFreshAccount(page: import('@playwright/test').Page, label: string) {
-  const email = `qa_${label}_${Date.now()}@test.com`;
-  const registrationPage = new RegistrationPage(page);
-  const homePage = new HomePage(page);
-  await registrationPage.goto();
-  await registrationPage.register(`QA ${label}`, email, PASSWORD);
-  await homePage.verifyLoaded();
-}
+// Single registration/login for the whole file — every test case below reads
+// the shared catalogue (or, for TC-006, favourites one title in it), none of
+// which conflicts with the others, so one account/session covers all three.
+test.describe.serial('Smoke - Library', () => {
+  let context: import('@playwright/test').BrowserContext;
+  let page: import('@playwright/test').Page;
+  let libraryPage: LibraryPage;
 
-test.describe('Smoke - Library', () => {
-  test('TC-004 - Library catalogue loads with browsable titles and tabs', async ({ page }) => {
-    await registerFreshAccount(page, 'Library');
+  test.beforeAll(async ({ browser }) => {
+    context = await browser.newContext();
+    page = await context.newPage();
 
-    const libraryPage = new LibraryPage(page);
+    const email = `qa_library_${Date.now()}@test.com`;
+    const registrationPage = new RegistrationPage(page);
+    const homePage = new HomePage(page);
+    await registrationPage.goto();
+    await registrationPage.register('QA Library', email, PASSWORD);
+    await homePage.verifyLoaded();
+
+    libraryPage = new LibraryPage(page);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('TC-004 - Library catalogue loads with browsable titles and tabs', async () => {
     await libraryPage.goto();
     await libraryPage.verifyLoaded();
 
@@ -36,10 +49,7 @@ test.describe('Smoke - Library', () => {
     await expect(libraryPage.paginationSummary).toBeVisible();
   });
 
-  test('TC-005 - Searching the catalogue filters to the matching title', async ({ page }) => {
-    await registerFreshAccount(page, 'Search');
-
-    const libraryPage = new LibraryPage(page);
+  test('TC-005 - Searching the catalogue filters to the matching title', async () => {
     await libraryPage.goto();
     await libraryPage.verifyLoaded();
 
@@ -51,10 +61,7 @@ test.describe('Smoke - Library', () => {
     await expect(libraryPage.row(firstTitle as string)).toBeVisible();
   });
 
-  test('TC-006 - Saving a catalogue title surfaces it under Saved > Books', async ({ page }) => {
-    await registerFreshAccount(page, 'Favourite');
-
-    const libraryPage = new LibraryPage(page);
+  test('TC-006 - Saving a catalogue title surfaces it under Saved > Books', async () => {
     await libraryPage.goto();
     await libraryPage.verifyLoaded();
 

@@ -11,11 +11,25 @@ import { loginAsAdmin } from '@utils/admin-session';
 // admin-pdfs.page.ts. Upload creates a shared catalogue title (draft), which
 // this suite cleans up afterwards so repeated runs don't pollute the
 // catalogue that library.spec.ts / saved.spec.ts also read from.
-test.describe('Smoke - Upload PDF', () => {
-  test('TC-010 - Admin · PDF Catalogue page loads with the upload form and title list', async ({ page }) => {
-    await loginAsAdmin(page);
+//
+// Single admin login for the whole file — both test cases share it.
+test.describe.serial('Smoke - Upload PDF', () => {
+  let context: import('@playwright/test').BrowserContext;
+  let page: import('@playwright/test').Page;
+  let adminPdfsPage: AdminPdfsPage;
 
-    const adminPdfsPage = new AdminPdfsPage(page);
+  test.beforeAll(async ({ browser }) => {
+    context = await browser.newContext();
+    page = await context.newPage();
+    await loginAsAdmin(page);
+    adminPdfsPage = new AdminPdfsPage(page);
+  });
+
+  test.afterAll(async () => {
+    await context.close();
+  });
+
+  test('TC-010 - Admin · PDF Catalogue page loads with the upload form and title list', async () => {
     await adminPdfsPage.goto();
     await adminPdfsPage.verifyLoaded();
 
@@ -23,9 +37,7 @@ test.describe('Smoke - Upload PDF', () => {
     await expect(adminPdfsPage.allTitlesHeading).toBeVisible();
   });
 
-  test('TC-014 - Uploading a PDF creates a draft catalogue title with its extracted text', async ({ page }) => {
-    await loginAsAdmin(page);
-
+  test('TC-014 - Uploading a PDF creates a draft catalogue title with its extracted text', async () => {
     const pdfPath = path.join(os.tmpdir(), `odiobuk-upload-${Date.now()}.pdf`);
     const pdfBytes = await buildMinimalPdf(
       'A short paragraph so the uploaded PDF has real extractable text.',
@@ -34,7 +46,6 @@ test.describe('Smoke - Upload PDF', () => {
     const title = `QA Upload ${Date.now()}`;
 
     try {
-      const adminPdfsPage = new AdminPdfsPage(page);
       await adminPdfsPage.goto();
       await adminPdfsPage.verifyLoaded();
       await adminPdfsPage.uploadAsDraft(pdfPath, title, 'QA Author', 'Testing');
@@ -44,7 +55,7 @@ test.describe('Smoke - Upload PDF', () => {
       await expect(row.getByRole('button', { name: 'Publish', exact: true })).toBeVisible();
       await expect(row.getByRole('button', { name: 'Narrate', exact: true })).toBeVisible();
     } finally {
-      await new AdminPdfsPage(page).remove(title).catch(() => {});
+      await adminPdfsPage.remove(title).catch(() => {});
       fs.unlinkSync(pdfPath);
     }
   });
