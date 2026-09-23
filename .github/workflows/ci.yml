@@ -59,7 +59,14 @@ jobs:
       # --grep-invert '@slow' skips the multi-minute narration/generation
       # journeys (odiobuk TC-013/TC-015) — those run on their own via
       # `--grep @slow --workers=1`, not on every push/PR.
-      - run: npx playwright test --project=${{ matrix.site }}-${{ matrix.browser }} --grep-invert "@slow"
+      # --workers=1: odiobuk and massive-market both share one login
+      # (admin/marketer) across multiple spec files in the same project —
+      # Playwright's default parallelism runs those files in different
+      # workers simultaneously, which collides on the shared account (extra
+      # concurrent logins, state races). Confirmed live via CI run
+      # 35741417972 (priority-next.spec.ts and admin-coverage.spec.ts
+      # failing from exactly this).
+      - run: npx playwright test --project=${{ matrix.site }}-${{ matrix.browser }} --grep-invert "@slow" --workers=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -129,7 +136,10 @@ jobs:
         run: |
           mkdir -p apps
           gh release download mobile-apk --repo "${{ github.repository }}" --pattern "*.apk" --dir apps --clobber
-          mv apps/*.apk apps/memorywave_v2.apk
+          apk_file=$(ls apps/*.apk | head -n1)
+          if [ "$apk_file" != "apps/memorywave_v2.apk" ]; then
+            mv "$apk_file" apps/memorywave_v2.apk
+          fi
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
