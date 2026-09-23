@@ -140,6 +140,20 @@ jobs:
           if [ "$apk_file" != "apps/memorywave_v2.apk" ]; then
             mv "$apk_file" apps/memorywave_v2.apk
           fi
+      # Only login.spec.ts and registration.spec.ts: every other mobile spec
+      # (audiobooks/home/library/profile/vault/voices) assumes the app is
+      # already past "First-Login Verification" — a live face + voice
+      # liveness check gated by a LOCAL, per-device/per-app-install flag
+      # (auth_service.dart's isVerified), not anything tied to the account
+      # server-side. A fresh CI emulator has never passed it, no matter how
+      # provisioned the account is, and it cannot be automated without real
+      # camera/mic input (confirmed: not something CI can do — see
+      # login.spec.ts's "valid credentials" test and the CHANGELOG/
+      # QA_WORK_LOG open question it references). login.spec.ts and
+      # registration.spec.ts only exercise client-side validation up to
+      # that boundary, so they're the only specs that are CI-safe today.
+      # Run the full suite manually against a real device/persistent
+      # emulator that's already been verified once by a human.
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -148,7 +162,7 @@ jobs:
           avd-name: Odiobuk_Pixel_7_API_34
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: npm run test:mobile
+          script: npm run test:mobile -- --spec ./src/mobile/tests/login.spec.ts --spec ./src/mobile/tests/registration.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
