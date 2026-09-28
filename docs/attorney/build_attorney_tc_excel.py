@@ -462,6 +462,8 @@ RESULTS["CASE-012"] = (FAIL, "BUG (security): attorney not assigned to the case 
                              "GET /api/v1/cases/<id>; roles doc says attorneys act only on assigned cases.")
 
 
+MANUAL_ONLY = ("SES-002", "TEAM-012")  # results from observation, not a spec
+
 # ---------------------------------------------------------------- Workbook
 COLS = ["TC ID", "Module", "Title", "Preconditions", "Test Steps", "Test Data", "Expected Result",
         "Priority", "Type", "Role", "Automation", "Status", "Actual Result / Notes"]
@@ -486,7 +488,7 @@ ws.row_dimensions[1].height = 30
 for t in TC:
     status, note = RESULTS.get(t[0], ("Not Run", ""))
     row = list(t)
-    if t[0] in RESULTS and t[0] not in ("SES-002", "TEAM-012"):
+    if t[0] in RESULTS and t[0] not in MANUAL_ONLY:
         row[10] = Y  # covered by a spec now, even if it first needed an account
     ws.append(row + [status, note])
 for r in range(2, ws.max_row + 1):
@@ -517,23 +519,39 @@ modules = []
 for t in TC:
     if t[1] not in modules:
         modules.append(t[1])
+s["A4"] = ("Last run: 2026-09-28 — 84 automated Playwright tests (public, firm-admin, invitation-onboarding "
+           "specs), all green; known app bugs are kept as expected failures. Fail = app bug found.")
+s["A4"].font = Font(bold=True)
+status = lambda t: RESULTS.get(t[0], ("Not Run", ""))[0]
+automated = lambda t: t[0] in RESULTS and t[0] not in MANUAL_ONLY
 s.append([])
-s.append(["Module", "Total", "High", "Medium", "Low", "Automatable now"])
+cols = ["Module", "Total", "High", "Medium", "Low", "Automated", "Pass", "Fail", "Not Run"]
+s.append(cols)
 hdr = s.max_row
-for c in range(1, 7):
+for c in range(1, len(cols) + 1):
     s.cell(row=hdr, column=c).font = Font(bold=True, color="FFFFFF")
     s.cell(row=hdr, column=c).fill = HEAD
+
+
+def summary_row(label, rows):
+    return [label, len(rows), sum(t[7] == H for t in rows), sum(t[7] == M for t in rows),
+            sum(t[7] == L for t in rows), sum(automated(t) for t in rows),
+            sum(status(t) == PASS for t in rows), sum(status(t) == FAIL for t in rows),
+            sum(status(t) == "Not Run" for t in rows)]
+
+
 for m in modules:
-    rows = [t for t in TC if t[1] == m]
-    s.append([m, len(rows), sum(t[7] == H for t in rows), sum(t[7] == M for t in rows),
-              sum(t[7] == L for t in rows), sum(t[10] == Y for t in rows)])
-s.append(["TOTAL", len(TC), sum(t[7] == H for t in TC), sum(t[7] == M for t in TC),
-          sum(t[7] == L for t in TC), sum(t[10] == Y for t in TC)])
-for c in range(1, 7):
-    s.cell(row=s.max_row, column=c).font = Font(bold=True)
+    s.append(summary_row(m, [t for t in TC if t[1] == m]))
+for label, rows in [("TOTAL", TC), ("TOTAL — High priority only", [t for t in TC if t[7] == H])]:
+    s.append(summary_row(label, rows))
+    for c in range(1, len(cols) + 1):
+        s.cell(row=s.max_row, column=c).font = Font(bold=True)
+for r in range(hdr + 1, s.max_row + 1):
+    s.cell(row=r, column=7).fill = PatternFill("solid", fgColor="E6F4EA")
+    s.cell(row=r, column=8).fill = PatternFill("solid", fgColor="FDE2E1")
 s.column_dimensions["A"].width = 40
-for col in "BCDEF":
-    s.column_dimensions[col].width = 16
+for col in "BCDEFGHI":
+    s.column_dimensions[col].width = 12
 
 # Automation plan: High priority in execution order (automatable-now first)
 a = wb.create_sheet("High Priority Plan")
