@@ -10,3 +10,6 @@ allure-report/
 *.log
 apps/*.apk
 apps/*.ipa
+
+# Saved login sessions (tokens) from exploration scripts
+.auth/

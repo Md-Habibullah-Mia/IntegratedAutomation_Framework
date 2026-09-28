@@ -170,6 +170,8 @@ add("DSH-003", M_, "Dashboard shows only own firm's data", "Two firms exist", "1
     "No Firm B cases/members visible.", H, "Security", "Firm Admin", ACC)
 add("DSH-004", M_, "Client cannot open firm dashboard", "Logged in as beneficiary", "1. Open /dashboard", "",
     "Access denied or redirected to invited workspace.", H, "Security", "Beneficiary", ACC)
+add("DSH-005", M_, "Dashboard shows no fabricated data", "New firm with no cases/hearings", "1. Open /dashboard", "",
+    "Greeting/summary reflects real data; no hardcoded 'priority hearings this week'.", M, "Negative", "Firm Admin", ACC)
 
 # ---------------------------------------------------------------- Firm team
 M_ = "Firm Team & Staff Invitations"
@@ -193,6 +195,14 @@ add("TEAM-009", M_, "Non-inviter cannot revoke", "Invitation sent by another use
     "Action not allowed (documented policy: inviter only).", M, "Security", "Firm Admin", ACC)
 add("TEAM-010", M_, "Duplicate invite to existing member", "Email already in firm", "1. Invite the same email again", "",
     "Clear error; no duplicate membership.", M, "Negative", "Firm Admin", ACC)
+add("TEAM-011", M_, "Team page header shows the signed-in user", "Logged in as Firm Admin", "1. Open Team page", "",
+    "Header shows the signed-in user's name/role; no placeholder user; filters list real offices/departments.", M, "UI", "Firm Admin", ACC)
+add("TEAM-012", M_, "Firm Admin appears in the firm member list", "Logged in as Firm Admin", "1. Open Team page", "",
+    "The Firm Admin's own membership is listed.", M, "Positive", "Firm Admin", ACC)
+add("TEAM-013", M_, "Invite success screen gives a usable invite link", "Firm Admin", "1. Invite an Attorney\n2. Read 'Unique Invite Link'", "",
+    "Link carries a real token (…/invite/accept?token=<token>) and the Invitation Token ID is filled.", H, "Negative", "Firm Admin", ACC)
+add("TEAM-014", M_, "Invite success screen shows the chosen role", "Firm Admin", "1. Invite an Attorney\n2. Read 'Access Role'", "",
+    "Access Role shows 'Attorney' (or 'Paralegal') as chosen.", M, "UI", "Firm Admin", ACC)
 
 # ---------------------------------------------------------------- Invitation accept
 M_ = "Invitation Accept"
@@ -247,6 +257,8 @@ add("CASE-013", M_, "Client sees only own case", "Beneficiary of case A", "1. Op
     "Access denied.", H, "Security", "Beneficiary", ACC)
 add("CASE-014", M_, "Non-existent case id", "Logged in", "1. Open /cases/999999", "",
     "'Case not found.' / 404 message, no crash.", M, "Negative", "Firm Admin", ACC)
+add("CASE-015", M_, "Case detail shows no developer text", "Any case", "1. Open /cases/<id>", "",
+    "No 'TODO (product)…' or other developer notes on the page.", L, "UI", "Firm Admin", ACC)
 
 # ---------------------------------------------------------------- Case team
 M_ = "Case Team"
@@ -268,6 +280,8 @@ add("CTM-008", M_, "Only Firm Admin can remove team member", "Case with members"
     "Firm Admin succeeds; attorney blocked.", M, "Security", "Firm Admin", ACC)
 add("CTM-009", M_, "Case status flips to active after first acceptance", "Pending client invite", "1. Client accepts\n2. Reload team page", "",
     "Status 'active'; member row 'accepted'.", H, "E2E", "Firm Admin", MAIL)
+add("CTM-010", M_, "Pending invitee listed on case team page", "Invite sent, not yet accepted", "1. Invite a beneficiary\n2. Reload /cases/<id>/team", "",
+    "Invitee row with status 'pending' and a Resend action (page says 'Firm admins can resend pending invitations').", H, "Positive", "Firm Admin", ACC)
 
 # ---------------------------------------------------------------- Questionnaires
 M_ = "Questionnaires"
@@ -387,6 +401,25 @@ RESULTS["SEC-008"] = (FAIL, "BUG: http://34.232.246.13:8000/docs returns 200 —
 RESULTS["SES-002"] = ("Not Run", "Observed manually: signed-out /dashboard lands on /login with the individual "
                                  "text ('personal immigration workspace') instead of the firm login.")
 
+# Firm Admin run (src/web/attorney/tests/firm-admin.spec.ts, one login, 2026-09-28).
+for tc in ["LGN-007", "DSH-001", "DSH-002", "CASE-001", "CASE-002", "CASE-003", "CASE-004", "CASE-005",
+           "CASE-008", "CASE-009", "CASE-014", "CTM-001", "CTM-002", "CTM-003", "CTM-004", "QNR-001", "QNR-002",
+           "TEAM-001", "TEAM-002", "TEAM-003", "TEAM-004", "SES-003"]:
+    RESULTS[tc] = (PASS, "Automated — passed (firm-admin.spec.ts)")
+RESULTS["CTM-004"] = (PASS, "Automated — passed. Note: the browser's native email check fires first; the app's "
+                            "own message ('Invalid email: …') only shows with native validation off.")
+RESULTS["DOC-001"] = (PASS, "Automated — passed. Minor: breadcrumb shows 'Case #<id>' instead of the case name.")
+RESULTS["DSH-005"] = (FAIL, "BUG: brand-new firm with no cases shows 'You have 3 priority hearings this week' (hardcoded).")
+RESULTS["TEAM-011"] = (FAIL, "BUG: Team page header shows placeholder 'Sarah Jenkins, Senior Associate'; office "
+                             "filter lists mock values (New York HQ, London, Munich…).")
+RESULTS["TEAM-012"] = ("Fail", "BUG (observed): Firm Admin is not listed — 'Showing 0-0 of 0 members'.")
+RESULTS["TEAM-013"] = (FAIL, "BUG: after inviting an Attorney, 'Unique Invite Link' is …/invite/accept?token=null and "
+                             "'Invitation Token ID' is empty — the link can't be used.")
+RESULTS["TEAM-014"] = (FAIL, "BUG: invited as Attorney/Paralegal, but the success screen shows Access Role 'Standard User'.")
+RESULTS["CASE-015"] = (FAIL, "BUG: case detail shows developer text 'TODO (product): add a per-case due_at…'.")
+RESULTS["CTM-010"] = (FAIL, "BUG: invite succeeds ('Invitation sent to …'), but the invitee never appears on the team "
+                            "page — table stays 'No team members yet', so there is nothing to resend.")
+
 
 # ---------------------------------------------------------------- Workbook
 COLS = ["TC ID", "Module", "Title", "Preconditions", "Test Steps", "Test Data", "Expected Result",
@@ -411,7 +444,10 @@ for c, w in enumerate(WIDTHS, 1):
 ws.row_dimensions[1].height = 30
 for t in TC:
     status, note = RESULTS.get(t[0], ("Not Run", ""))
-    ws.append(list(t) + [status, note])
+    row = list(t)
+    if t[0] in RESULTS and t[0] not in ("SES-002", "TEAM-012"):
+        row[10] = Y  # covered by a spec now, even if it first needed an account
+    ws.append(row + [status, note])
 for r in range(2, ws.max_row + 1):
     for c in range(1, len(COLS) + 1):
         cell = ws.cell(row=r, column=c)
