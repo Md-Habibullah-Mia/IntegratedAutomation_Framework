@@ -1,13 +1,14 @@
 import { expect, Page, test } from '@playwright/test';
 import { LoginPage } from '@web/attorney/pages/auth.pages';
+import { plusAddress } from '@utils/gmail-inbox';
 
 // LexVerify — Firm Admin test cases (docs/attorney/LexVerify_Test_Cases.xlsx),
 // High priority first, in plan order. One login for the whole file (the
 // framework's rule): a serial describe shares a single signed-in page.
 //
 // Data created on the pilot is all inside the test firm-admin's own firm:
-// one "QA Auto" case per run and invitations to Gmail plus-addresses of the
-// same inbox (forairelatedtask+<role><ts>@gmail.com), unique per run so a
+// one "QA Auto" case per run and invitations to plus-addresses of the QA test
+// inbox (ATTORNEY_MAIL_USER, e.g. pulseapktester+<role><ts>@gmail.com), unique per run so a
 // re-run never collides with a previous pending invitation.
 //
 // Tests tagged "(bug)" assert correct behaviour the app does not have yet.
@@ -17,7 +18,7 @@ import { LoginPage } from '@web/attorney/pages/auth.pages';
 const EMAIL = process.env.ATTORNEY_FIRM_ADMIN_EMAIL;
 const PASSWORD = process.env.ATTORNEY_FIRM_ADMIN_PASSWORD;
 const RUN = Date.now();
-const plus = (tag: string) => EMAIL!.replace('@', `+${tag}${RUN}@`);
+const plus = (tag: string) => (process.env.ATTORNEY_MAIL_USER ? plusAddress(`${tag}${RUN}`) : EMAIL!.replace('@', `+${tag}${RUN}@`));
 
 /**
  * These forms use type="email" / required inputs inside a <form>, so the

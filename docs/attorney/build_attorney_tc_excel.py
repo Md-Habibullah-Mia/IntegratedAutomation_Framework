@@ -68,6 +68,10 @@ add("REG-013", M_, "Firm auto-created from email domain after confirmation", "Fr
     "User lands on dashboard as Firm Admin of a firm named after the domain (e.g. 'Smith Law').", H, "E2E", "Firm Admin", MAIL)
 add("REG-014", M_, "Very long email / password inputs", "On /register", "1. Enter 255+ char email or 256+ char password\n2. Submit", "",
     "Graceful validation error; no crash or 500.", L, "Boundary", "Guest", Y)
+add("REG-015", M_, "Invitee sign-up banner shows the case name", "Opened a valid invite link", "1. Accept Invitation\n2. Read the banner on /register", "",
+    "'You've been invited to <case name>'.", M, "UI", "Invitee", MAIL)
+add("REG-016", M_, "Invitee sign-up page uses invitee wording", "Opened a valid invite link", "1. Accept Invitation\n2. Read /register", "",
+    "Client/staff invitee sees sign-up copy for their role, not 'Begin Firm Verification' / 'Onboarding Phase I' / 'Sign in to your firm'.", L, "UI", "Invitee", MAIL)
 
 # ---------------------------------------------------------------- OTP
 M_ = "Email Verification (OTP)"
@@ -159,6 +163,8 @@ add("ONB-001", M_, "Pending onboarding page for user without access", "Account w
     "/onboarding/pending explains the account has no firm/case yet and needs an invitation.", M, "UI", "Any", ACC)
 add("ONB-002", M_, "Invited workspace lists client's cases only", "Client on 1+ cases", "1. Log in as client", "",
     "Only the cases the client was invited to are listed.", H, "Positive", "Beneficiary", ACC)
+add("ONB-003", M_, "Invited workspace shows the beneficiary on the case row", "Client with accepted invite", "1. Open /invited-workspace", "",
+    "Beneficiary column shows the beneficiary's name.", L, "UI", "Beneficiary", MAIL)
 
 # ---------------------------------------------------------------- Dashboard
 M_ = "Dashboard"
@@ -172,6 +178,8 @@ add("DSH-004", M_, "Client cannot open firm dashboard", "Logged in as beneficiar
     "Access denied or redirected to invited workspace.", H, "Security", "Beneficiary", ACC)
 add("DSH-005", M_, "Dashboard shows no fabricated data", "New firm with no cases/hearings", "1. Open /dashboard", "",
     "Greeting/summary reflects real data; no hardcoded 'priority hearings this week'.", M, "Negative", "Firm Admin", ACC)
+add("DSH-006", M_, "'New Case' not offered to attorneys", "Logged in as Attorney", "1. Open /dashboard", "",
+    "No '+ New Case' button (only Firm Admin can create cases).", M, "UI", "Attorney", MAIL)
 
 # ---------------------------------------------------------------- Firm team
 M_ = "Firm Team & Staff Invitations"
@@ -226,6 +234,8 @@ add("INV-009", M_, "Self-petition: same email as beneficiary and petitioner", "D
     "Both invitations accepted; person listed twice with both roles (expected).", M, "Positive", "Firm Admin", MAIL)
 add("INV-010", M_, "Token can be used only once", "Accepted token", "1. Accept again in another browser", "",
     "Second attempt rejected.", H, "Security", "Invitee", MAIL)
+add("INV-011", M_, "Invitation email names the case and firm", "Invite sent", "1. Open the invitation email", "",
+    "Subject/body name the firm and case; no raw 'Firm ID' / 'Case ID' values; lands in the inbox, not spam.", M, "UI", "Invitee", MAIL)
 
 # ---------------------------------------------------------------- Cases
 M_ = "Case Management"
@@ -259,6 +269,8 @@ add("CASE-014", M_, "Non-existent case id", "Logged in", "1. Open /cases/999999"
     "'Case not found.' / 404 message, no crash.", M, "Negative", "Firm Admin", ACC)
 add("CASE-015", M_, "Case detail shows no developer text", "Any case", "1. Open /cases/<id>", "",
     "No 'TODO (product)…' or other developer notes on the page.", L, "UI", "Firm Admin", ACC)
+add("CASE-016", M_, "Case overview counts team members", "Case with an active beneficiary", "1. Open /cases/<id>", "",
+    "'Team members' card shows the member count, not '0 — No one has access yet.'", M, "UI", "Firm Admin", MAIL)
 
 # ---------------------------------------------------------------- Case team
 M_ = "Case Team"
@@ -282,6 +294,8 @@ add("CTM-009", M_, "Case status flips to active after first acceptance", "Pendin
     "Status 'active'; member row 'accepted'.", H, "E2E", "Firm Admin", MAIL)
 add("CTM-010", M_, "Pending invitee listed on case team page", "Invite sent, not yet accepted", "1. Invite a beneficiary\n2. Reload /cases/<id>/team", "",
     "Invitee row with status 'pending' and a Resend action (page says 'Firm admins can resend pending invitations').", H, "Positive", "Firm Admin", ACC)
+add("CTM-011", M_, "Member name uses the names given on the invite", "Invite with first/last name, accepted", "1. Open /cases/<id>/team", "",
+    "Row shows 'QA Beneficiary', not an email-derived '<email> User'.", M, "UI", "Firm Admin", MAIL)
 
 # ---------------------------------------------------------------- Questionnaires
 M_ = "Questionnaires"
@@ -419,6 +433,33 @@ RESULTS["TEAM-014"] = (FAIL, "BUG: invited as Attorney/Paralegal, but the succes
 RESULTS["CASE-015"] = (FAIL, "BUG: case detail shows developer text 'TODO (product): add a per-case due_at…'.")
 RESULTS["CTM-010"] = (FAIL, "BUG: invite succeeds ('Invitation sent to …'), but the invitee never appears on the team "
                             "page — table stays 'No team members yet', so there is nothing to resend.")
+
+# Invitation run (src/web/attorney/tests/invitation-onboarding.spec.ts, real
+# email via the QA Gmail inbox, 2026-09-28).
+for tc in ["REG-007", "REG-008", "REG-012", "OTP-005", "OTP-006", "LGN-008", "ONB-002", "INV-004", "INV-007",
+           "CTM-009", "DSH-004", "CASE-013", "DOC-010", "AI-005", "FPW-004", "FPW-007", "TEAM-005", "CASE-007",
+           "CTM-005"]:
+    RESULTS[tc] = (PASS, "Automated — passed (invitation-onboarding.spec.ts)")
+RESULTS["TEAM-002"] = (PASS, "Automated — passed; invited attorney also signed up via the emailed link and landed on /dashboard.")
+RESULTS["DSH-004"] = (PASS, "Automated — passed. /dashboard is not redirected for clients; it renders a client view "
+                            "(Client navigation, own case only, no firm controls).")
+RESULTS["OTP-006"] = (PASS, "Automated — passed. After verify, an invitee is sent to the firm login (/login?role=firm).")
+RESULTS["INV-003"] = (FAIL, "BUG: opening an already-accepted invitation link still shows 'You've been invited' with an "
+                            "enabled 'Accept Invitation' button.")
+RESULTS["INV-010"] = RESULTS["INV-003"]
+RESULTS["INV-011"] = (FAIL, "BUG: subject 'You are invited to join Immigration Platform'; body shows 'Role: client', "
+                            "'Firm ID: 8', 'Case ID: 8' and no case/firm name. After a few test invites Gmail started "
+                            "filing these emails as Spam (deliverability).")
+RESULTS["REG-015"] = (FAIL, "BUG: banner reads 'You've been invited to Case #<id>' instead of the case name.")
+RESULTS["REG-016"] = (FAIL, "BUG: client invitee sees firm-owner copy: 'Begin Firm Verification', 'Onboarding Phase I', "
+                            "'Sign in to your firm'.")
+RESULTS["ONB-003"] = (FAIL, "BUG: Beneficiary column on the invited workspace shows '— —'.")
+RESULTS["CTM-011"] = (FAIL, "BUG: invited as 'QA Beneficiary', the member shows as 'Pulseapktester+ben<ts> User'.")
+RESULTS["CASE-016"] = (FAIL, "BUG: overview card says 'Team members 0 — No one has access yet.' while the Team tab lists "
+                             "the active beneficiary.")
+RESULTS["DSH-006"] = (FAIL, "BUG: attorney's dashboard shows '+ New Case' (the API correctly returns 403).")
+RESULTS["CASE-012"] = (FAIL, "BUG (security): attorney not assigned to the case gets 200 with full details from "
+                             "GET /api/v1/cases/<id>; roles doc says attorneys act only on assigned cases.")
 
 
 # ---------------------------------------------------------------- Workbook
