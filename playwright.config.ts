@@ -7,6 +7,7 @@ const sites = [
   { key: 'medco', testDir: './src/web/medco/tests', baseURL: config.medcoWebBaseUrl },
   { key: 'massive-market', testDir: './src/web/massive-market/tests', baseURL: config.massiveMarketWebBaseUrl },
   { key: 'odiobuk', testDir: './src/web/odiobuk/tests', baseURL: config.odiobukWebBaseUrl },
+  { key: 'attorney', testDir: './src/web/attorney/tests', baseURL: config.attorneyWebBaseUrl },
 ];
 
 const browsers = [

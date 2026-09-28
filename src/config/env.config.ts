@@ -15,6 +15,9 @@ export interface EnvConfig {
   massiveMarketWebBaseUrl: string;
   odiobukWebBaseUrl: string;
   odiobukApiBaseUrl: string;
+  // LexVerify (AttorneyProject): Next.js web app + separate FastAPI backend.
+  attorneyWebBaseUrl: string;
+  attorneyApiBaseUrl: string;
   massiveMarket: {
     adminEmail?: string;
     adminPassword?: string;
@@ -60,6 +63,8 @@ export const config: EnvConfig = {
   massiveMarketWebBaseUrl: process.env.MASSIVE_MARKET_WEB_BASE_URL || 'https://example.com',
   odiobukWebBaseUrl: process.env.ODIOBUK_WEB_BASE_URL || 'https://example.com',
   odiobukApiBaseUrl: process.env.ODIOBUK_API_BASE_URL || 'https://api.example.com',
+  attorneyWebBaseUrl: process.env.ATTORNEY_WEB_BASE_URL || 'https://example.com',
+  attorneyApiBaseUrl: process.env.ATTORNEY_API_BASE_URL || 'https://api.example.com',
   massiveMarket: {
     adminEmail: process.env.MASSIVE_MARKET_ADMIN_EMAIL,
     adminPassword: process.env.MASSIVE_MARKET_ADMIN_PASSWORD,
