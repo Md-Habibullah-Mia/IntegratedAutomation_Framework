@@ -22,7 +22,7 @@ jobs:
       # that, so medco/massive-market and the other browsers never even ran.
       fail-fast: false
       matrix:
-        site: [medco, massive-market, odiobuk]
+        site: [medco, massive-market, odiobuk, attorney]
         browser: [chromium, firefox, webkit]
         # massive-market's admin/marketer coverage performs real, one-shot
         # state changes (approving a real pending request, submitting a real
@@ -36,6 +36,12 @@ jobs:
             browser: firefox
           - site: massive-market
             browser: webkit
+          # attorney (LexVerify) creates a case, sign-ups and invitations on
+          # the shared pilot every run - once per push is enough.
+          - site: attorney
+            browser: firefox
+          - site: attorney
+            browser: webkit
     env:
       TEST_ENV: ${{ github.event.inputs.test_env || 'dev' }}
       REGISTRATION_TEST_PASSWORD: ${{ secrets.REGISTRATION_TEST_PASSWORD }}
@@ -48,6 +54,10 @@ jobs:
       MOBILE_TEST_PASSWORD: ${{ secrets.MOBILE_TEST_PASSWORD }}
       MOBILE_TEST_ADMIN_EMAIL: ${{ secrets.MOBILE_TEST_ADMIN_EMAIL }}
       MOBILE_TEST_ADMIN_PASSWORD: ${{ secrets.MOBILE_TEST_ADMIN_PASSWORD }}
+      ATTORNEY_FIRM_ADMIN_EMAIL: ${{ secrets.ATTORNEY_FIRM_ADMIN_EMAIL }}
+      ATTORNEY_FIRM_ADMIN_PASSWORD: ${{ secrets.ATTORNEY_FIRM_ADMIN_PASSWORD }}
+      ATTORNEY_MAIL_USER: ${{ secrets.ATTORNEY_MAIL_USER }}
+      ATTORNEY_MAIL_APP_PASSWORD: ${{ secrets.ATTORNEY_MAIL_APP_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
