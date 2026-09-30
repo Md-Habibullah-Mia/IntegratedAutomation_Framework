@@ -12,12 +12,15 @@ describe('Home (MemoryWave / Odiobuk Android app)', () => {
   const player = new PlayerScreen();
   const bookPages = new BookPagesScreen();
 
-  // Real account content used as ground truth (verified live before
-  // writing these assertions): 2 audiobooks ("The Prince — Political
-  // Philosophy", a Penguin Readers "Girl Meets Boy" recording) and 1 PDF
-  // ("D_Strange-Girl_Meets_Boy_Penguin_Readers-1-min", 34 pages).
-  const AUDIOBOOK_TITLE = 'The Prince — Political Philosophy';
-  const PDF_FILENAME = 'D_Strange-Girl_Meets_Boy_Penguin_Readers-1-min';
+  // The account's own audiobook, narrated from the store title (verified
+  // live 2026-09-30: Home → YOUR AUDIOBOOKS · ALL 1).
+  const AUDIOBOOK_TITLE = 'And Then There Were None';
+  // HOM-013 stays skipped: the account has no PDF of its own and the
+  // backend no longer accepts one (POST /api/documents → 403 "Uploading
+  // your own book is no longer available…", rechecked 2026-09-30), so
+  // Home's PDF section only shows the app's built-in examples. Placeholder
+  // name kept for if own-PDF upload ever returns.
+  const PDF_FILENAME = 'qa-fixture-book';
 
   // With noReset:true, Appium attaches to whatever screen the app was
   // last left on (it does not relaunch to a known state), so a prior
@@ -36,8 +39,7 @@ describe('Home (MemoryWave / Odiobuk Android app)', () => {
     const displayed = await home.isDisplayed();
     expect(displayed).to.equal(true);
     const greeting = await home.getGreetingText();
-    expect(greeting).to.include('Kazi');
-    expect(greeting).to.match(/^(Good morning,|Good afternoon,|Good evening,|Welcome,)/);
+    expect(greeting).to.match(/^(Good morning|Good afternoon|Good evening|Welcome), \S+/);
   });
 
   it('HOM-011a: lists the account\'s real audiobooks under Your Audiobooks', async () => {
@@ -60,14 +62,14 @@ describe('Home (MemoryWave / Odiobuk Android app)', () => {
     await browser.back();
   });
 
-  it('HOM-013a: lists the account\'s real PDF under Your Books · PDF', async () => {
+  it.skip('HOM-013a: lists the account\'s real PDF under Your Books · PDF', async () => {
     const sectionVisible = await home.isPdfSectionVisible();
     expect(sectionVisible).to.equal(true);
     const tileVisible = await home.isVisible(home.pdfTile(PDF_FILENAME));
     expect(tileVisible).to.equal(true);
   });
 
-  it('HOM-013b / LIB-023 / LIB-024: tapping the PDF opens Book Pages with the right filename and page list', async () => {
+  it.skip('HOM-013b / LIB-023 / LIB-024: tapping the PDF opens Book Pages with the right filename and page list', async () => {
     await home.openPdf(PDF_FILENAME);
     const onBookPages = await bookPages.isDisplayed();
     expect(onBookPages).to.equal(true);

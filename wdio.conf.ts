@@ -72,7 +72,10 @@ export const config: WebdriverIO.Config = {
   connectionRetryTimeout: 120000,
   connectionRetryCount: 3,
 
-  services: envConfig.cloud.provider === 'local' ? ['appium'] : [],
+  // appiumStartTimeout: the service's 30 s default is too short for a cold
+  // Appium start on Windows (driver/extension checks) — observed timing out
+  // on the first run after boot, then starting in ~12 s once warm.
+  services: envConfig.cloud.provider === 'local' ? [['appium', { appiumStartTimeout: 90_000 }]] : [],
   framework: 'mocha',
   mochaOpts: {
     ui: 'bdd',

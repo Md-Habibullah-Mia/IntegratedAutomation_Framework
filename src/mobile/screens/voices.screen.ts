@@ -24,6 +24,20 @@ export class VoicesScreen extends BaseMobileScreen {
     return this.waitVisible(SELECTORS.header);
   }
 
+  /**
+   * Voices keeps its scroll position between visits, and Flutter drops
+   * off-screen rows from the accessibility tree — so a list left scrolled
+   * down hides the Record CTA, YOUR VOICES and the first voices (the
+   * "Voices" title and tagline are pinned, so they can't tell whether the
+   * list is at the top). Swipe back until the Record CTA shows.
+   */
+  async scrollToTop() {
+    for (let i = 0; i < 4 && !(await this.isVisible(SELECTORS.recordCta)); i += 1) {
+      await this.swipe('down');
+      await this.driver.pause(500);
+    }
+  }
+
   isTaglineVisible() {
     return this.waitVisible(SELECTORS.tagline);
   }

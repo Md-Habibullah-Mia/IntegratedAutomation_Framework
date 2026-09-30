@@ -1,12 +1,16 @@
 import { BaseMobileScreen } from '@core/base.screen';
 
 // Captured from a live accessibility dump of LibraryScreen. The header
-// count text differs by shelf ("N titles · yours to narrate" on Public,
-// "N items · yours to narrate" on Your Library), so it's matched by the
-// stable trailing phrase rather than an exact string.
+// count line has four forms (Audiobook-mobile library_screen.dart):
+// Public — "N titles · yours to narrate", or "N titles · a preview of the
+// store" while nothing is published and the app shows its own sample
+// shelf; Your Library — "N items · yours to narrate", or "Nothing of yours
+// here yet".
 const SELECTORS = {
   header: '~Library',
-  countLine: '//*[contains(@content-desc,"yours to narrate")]',
+  countLine:
+    '//*[contains(@content-desc,"· yours to narrate") or contains(@content-desc,"· a preview of the store") or ' +
+    '@content-desc="Nothing of yours here yet"]',
   publicTab: '~Public',
   yourLibraryTab: '~Your Library',
   categoryAudiobook: '~Audiobook',

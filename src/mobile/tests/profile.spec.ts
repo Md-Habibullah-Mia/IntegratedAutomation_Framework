@@ -26,7 +26,12 @@ describe('Profile (MemoryWave / Odiobuk Android app)', () => {
     const identityVisible = await profile.isIdentityVisible();
     expect(identityVisible).to.equal(true);
     const identity = await profile.getIdentityText();
-    expect(identity).to.match(/^K\n.+\nMember — (Free|Premium) Edition$/);
+    // "{initial}\n{full name}\nMember — … Edition"; the initial is the
+    // full name's first letter (the app's avatar rule for names > 2 chars).
+    const match = identity.match(/^(\S+)\n(.+)\nMember — (Free|Premium) Edition$/);
+    expect(match, `unexpected identity text: ${identity}`).to.not.equal(null);
+    const [, initial, fullName] = match as RegExpMatchArray;
+    expect(initial).to.equal(fullName.trim()[0].toUpperCase());
 
     const statsVisible = await profile.isStatsLineVisible();
     expect(statsVisible).to.equal(true);

@@ -11,17 +11,17 @@ describe('Voices (MemoryWave / Odiobuk Android app)', () => {
   const home = new HomeScreen();
   const voices = new VoicesScreen();
 
-  // Real account content used as ground truth (verified live): a ready,
-  // unshared voice ("Riad New") with a "Lend" action, and at least one
-  // unregistered capture session ("Riad", "Recorded · not named yet")
-  // with a "Register" action.
-  const READY_VOICE_NAME = 'Riad New';
+  // Account state (verified live 2026-09-30): one ready voice "HH2"
+  // ("Ready to narrate") plus unregistered capture sessions ("Recorded ·
+  // not named yet", each with a "Register" action).
+  const READY_VOICE_NAME = 'HH2';
 
   beforeEach(async () => {
     await home.ensureDisplayed();
     await home.openVoices();
     const onVoices = await voices.isDisplayed();
     expect(onVoices, 'failed to reach Voices from Home in beforeEach').to.equal(true);
+    await voices.scrollToTop();
   });
 
   it('VOI header, tagline, and record CTA render correctly', async () => {
@@ -31,13 +31,16 @@ describe('Voices (MemoryWave / Odiobuk Android app)', () => {
     expect(recordCtaVisible).to.equal(true);
   });
 
-  it('VOI-004/VOI-009: Your Voices lists real ready voices and an unregistered session', async () => {
+  it('VOI-009: Your Voices lists an unregistered capture session', async () => {
     const sectionVisible = await voices.isYourVoicesSectionVisible();
     expect(sectionVisible).to.equal(true);
+    const unregisteredVisible = await voices.isVisible('//*[contains(@content-desc,"Recorded · not named yet")]');
+    expect(unregisteredVisible).to.equal(true);
+  });
+
+  it('VOI-004: Your Voices lists a real ready voice', async () => {
     const readyVoiceVisible = await voices.isVisible(voices.voiceRow(READY_VOICE_NAME, 'Ready to narrate'));
     expect(readyVoiceVisible).to.equal(true);
-    const unregisteredVisible = await voices.isVisible(voices.voiceRow('Riad', 'not named yet'));
-    expect(unregisteredVisible).to.equal(true);
   });
 
   it('VOI-010/VOI-011: Register dialog opens pre-filled and Cancel discards without mutating', async () => {

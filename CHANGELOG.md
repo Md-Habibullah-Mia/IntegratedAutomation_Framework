@@ -615,3 +615,110 @@ AUD-034/AUD-036) passes reliably, confirmed alongside a full rerun of
 all five prior suites (23 tests total across 6 spec files) with zero
 failures — the `ensureDisplayed()` rewrite didn't regress anything that
 depended on it. 30 of 285 test cases now marked Pass.
+
+---
+
+## Phase 17 — CI past First-Login Verification, a replaced backend, two backend bugs
+
+**Date:** 2026-09-24
+
+**Getting CI past verification without faking a face.** Reading the app's
+own source (Audiobook-mobile `auth_service.dart`) settled the Phase 11–13
+open question: `isVerified` has no server-side equivalent — success just
+writes `verified_v1_<userId>=true` to plain, unencrypted
+`shared_preferences`. `src/utils/mobile-verified-seed.ts` now pre-seeds
+that exact flag (`flutter.verified_v1_<id>` in
+`FlutterSharedPreferences.xml`) via `adb root` on a `google_apis` image,
+resolving the user id from a real API login. Session tokens live in
+Keystore-backed `flutter_secure_storage`, so they can't be seeded — one
+real UI login in the new `src/mobile/setup/verified-login.spec.ts`
+follows, and lands straight on Home (LGN-010). CI's `mobile-tests` job
+now runs login/registration → seed (`--clear`) → setup login → the six
+post-login specs. One real gotcha, found live: `restorecon` strips the
+per-app SELinux MLS categories (`s0:c192,c256,…` → bare `s0`), leaving the
+file unreadable to the app; the label is now copied from the app's data
+dir with `chcon` instead.
+
+**The backend was replaced; all prior account data is gone.** The old
+test account 401s; the suite moved to a new account (empty content). The
+Public shelf is now the app's built-in sample shelf ("a preview of the
+store" — tapping a title only says the store isn't stocked), so the
+Phase 16 catalogue → "Narrate in your voice" flow no longer exists. Specs
+were adapted to what's actually true now, with nothing account-specific
+hardcoded: the greeting name and avatar initials are read from the live
+screen (avatar rule mirrored from the app's `MwAvatar`), and the Library
+count line covers all four of its forms. **Result:** 17 pass, 10 skipped
+(everything needing an audiobook, own PDF, or ready voice, plus all of
+`audiobooks.spec.ts`), 0 fail across all six post-login specs.
+
+**Recreating data programmatically — and the two backend bugs that block
+it.** `src/utils/mobile-account-seed.ts` recreates the account's content
+through the app's own API calls, idempotently, enrolling a voice from a
+committed **synthetic** TTS clip (`fixtures/mobile/qa-synthetic-voice.wav`,
+not any real person) via capture option B (`extract_voice_only`). Running
+it hit two real backend defects:
+- **Own-PDF upload is disabled server-side while the app still offers
+  it.** `POST /api/documents` → 403 "Uploading your own book is no longer
+  available…", yet Your Library still shows "Add a PDF". The seed treats
+  this as a warning, not a failure.
+- **Voice enrollment is broken for everyone.** Every v4 capture job fails
+  with `Unknown job handler 'capture_analysis'`, and the session stays
+  stuck on `analyzing` instead of moving to `error`. The two sessions
+  recorded through the app itself earlier the same day (HH1, H1) show
+  exactly the same failure, so this isn't specific to the synthetic
+  upload. No voice can become clone-ready, so no audiobook can be
+  generated on this backend.
+
+Re-run `npx ts-node --transpile-only src/utils/mobile-account-seed.ts`
+once the backend is fixed, then re-enable the skipped tests against the
+fixture names in `MOBILE_FIXTURE`.
+
+---
+
+## Phase 18 — Skipped mobile tests re-enabled against the restocked store
+
+**Date:** 2026-09-30
+
+Full cycle on the local emulator (Pixel 7, API 34): login 6/6,
+registration 4/4, verified login 1/1, and every post-login spec green —
+home 4, library 4, audiobooks 3, voices 5, profile 4, vault 2. Only
+HOM-013a/b stay skipped.
+
+**The store is stocked again**, so the data the skipped tests needed now
+exists: the account owns "And Then There Were None" (narrated in its own
+voice) and has a ready voice, "HH2"; "Sumitra" is on its voice list.
+Re-enabled HOM-011a/b, LIB-011, VOI-004, VOI-016/017 and the whole
+audiobooks suite (AUD-004/015, AUD-021 real generation, AUD-034/036)
+against those names. Voice enrollment works again (HH2 is ready), so the
+Phase 17 capture bug looks fixed on the backend.
+
+**Still skipped: HOM-013a/b** (own PDF on Home). `POST /api/documents`
+still returns 403 "Uploading your own book is no longer available…"
+(rechecked today) — a product change, not a transient bug — so Home's PDF
+section only shows the built-in examples.
+
+**Test fixes found along the way (none were app bugs):**
+- LIB-004 hardcoded the old sample shelf's titles; it now checks each
+  category's row *shape*, and selects Audiobook explicitly (the app
+  remembers the last category).
+- Voices keeps its scroll position and Flutter drops off-screen rows from
+  the accessibility tree; `VoicesScreen.scrollToTop()` swipes back until
+  the Record CTA shows (the title/tagline are pinned, so they can't tell).
+- Audiobooks: the history card's semantics are one merged node with a
+  single row but one node per row with several — `historyRows()` reads
+  both from one page-source snapshot. Generate waits for the voice picker
+  to load, taps Allow on Android's notification-permission prompt (it
+  covered "Narration started" after a `pm clear`), and waits for any
+  in-progress narration first (the app now runs one at a time). A new row
+  is recognised by its timestamp, not a row count (off-screen rows aren't
+  in the tree). AUD-021's timeout is set on the test object — wdio applies
+  it before the body runs, so `this.timeout()` inside was too late.
+- CI order: login and registration each leave the app on their own screen
+  under `noReset:true`, so either order broke the other spec. CI now runs
+  login → `pm clear` → registration.
+- `wdio.conf.ts`: `appiumStartTimeout` 90 s — a cold Appium start on
+  Windows overran the service's 30 s default.
+
+**Backend note:** a narration queued at 05:09 UTC sat at "running" for
+~20 minutes (progress stuck at 25%, then at 100% without finishing)
+before completing; later ones took under a minute each.

@@ -9,12 +9,13 @@ describe('Library (MemoryWave / Odiobuk Android app)', () => {
   const home = new HomeScreen();
   const library = new LibraryScreen();
 
-  // Real account content used as ground truth (verified live): Public
-  // shelf defaults to the Voice category, showing an owned voice
-  // ("Soumitra … Yours") and an unowned free one ("Soumitra … Free") —
-  // two distinct rows sharing a display name, disambiguated by the
-  // ownership fragment in their content-desc.
-  const OWNED_VOICE_NAME = 'Soumitra';
+  // The Public shelf's titles change as the store publishes content (it
+  // showed the built-in sample shelf until real titles went live around
+  // 2026-09-30), so LIB-004 checks row shapes rather than names.
+  //
+  // A store voice the account already has (Public → Voice row
+  // "SU | Sumitra | Deep | Yours", verified live 2026-09-30).
+  const OWNED_VOICE_NAME = 'Sumitra';
   const OWNED_FRAGMENT = 'Yours';
 
   beforeEach(async () => {
@@ -29,7 +30,7 @@ describe('Library (MemoryWave / Odiobuk Android app)', () => {
 
   it('LIB-002a: Public shelf header shows a real title count', async () => {
     const text = await library.getCountLineText();
-    expect(text).to.match(/^\d+ titles? · yours to narrate$/);
+    expect(text).to.match(/^\d+ titles? · (yours to narrate|a preview of the store)$/);
   });
 
   it('LIB-002b / LIB-003: Your Library shelf shows a real item count and its own dashed actions', async () => {
@@ -43,27 +44,35 @@ describe('Library (MemoryWave / Odiobuk Android app)', () => {
   });
 
   it('LIB-004: category chips switch which rows are shown on the Public shelf', async () => {
-    // Default category on a fresh Library visit is Audiobook (verified
-    // live — do not assume Voice, which only appeared true in an earlier
-    // mid-session exploration after prior manual taps).
-    const audiobookRowVisible = await library.waitVisible(
-      '//*[contains(@content-desc,"The Prince") and contains(@content-desc,"Political Philosophy")]'
-    );
-    expect(audiobookRowVisible).to.equal(true);
+    // Asserts each category's row *shape*, not specific titles: the store
+    // went from the built-in sample shelf to real published titles
+    // (2026-09-30: "And Then There Were None", "Sumitra", "the_hobbit"…),
+    // and hardcoded names broke on that change.
+    //   Audiobook: "{title}\n{genre} · {duration}\n{Yours|price}"
+    //   Voice:     "{initials}\n{name}\n…"   (2-letter initials line)
+    //   PDF:       "{filename}\n{n} pages\n{Yours|price}"
+    // Rows are multi-line; the header "N titles · yours to narrate" is one
+    // line, so requiring a newline keeps it out of the Audiobook match.
+    const audiobookRow = '//*[contains(@content-desc,"\n") and contains(@content-desc," · ") and not(contains(@content-desc," pages"))]';
+    const voiceRow = '//*[@content-desc and string-length(substring-before(@content-desc,"\n"))=2]';
+    const pdfRow = '//*[contains(@content-desc,"\n") and contains(@content-desc," pages")]';
+
+    // The app remembers the last category within a session, so select
+    // Audiobook explicitly rather than assuming it is the default.
+    await library.selectCategory('Audiobook');
+    expect(await library.waitVisible(audiobookRow), 'Audiobook rows after tapping Audiobook').to.equal(true);
+    expect(await library.isVisible(pdfRow), 'no PDF rows under Audiobook').to.equal(false);
 
     await library.selectCategory('Voice');
-    const voiceRowVisible = await library.waitVisible(library.voiceRow(OWNED_VOICE_NAME, OWNED_FRAGMENT));
-    expect(voiceRowVisible).to.equal(true);
+    expect(await library.waitVisible(voiceRow), 'Voice rows after tapping Voice').to.equal(true);
+    expect(await library.isVisible(audiobookRow), 'no Audiobook rows under Voice').to.equal(false);
 
     await library.selectCategory('PDF');
-    // The Public shelf's PDF category is the store catalogue (sample
-    // titles like "The Hobbit"), not the account's own uploaded PDF —
-    // that only appears under the Your Library shelf (see LIB-002b).
-    // Confirmed live before writing this assertion.
-    const pdfRowVisible = await library.waitVisible(
-      '//*[contains(@content-desc,"The Hobbit") and contains(@content-desc,"pages")]'
-    );
-    expect(pdfRowVisible).to.equal(true);
+    // The Public shelf's PDF category is the store catalogue, not the
+    // account's own uploaded PDF — that only appears under the Your
+    // Library shelf (see LIB-002b).
+    expect(await library.waitVisible(pdfRow), 'PDF rows after tapping PDF').to.equal(true);
+    expect(await library.isVisible(voiceRow), 'no Voice rows under PDF').to.equal(false);
   });
 
   it('LIB-011: tapping an already-owned voice shows a toast, not the acquire dialog', async () => {

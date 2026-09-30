@@ -20,15 +20,25 @@ const SELECTORS = {
   navToday: '~TODAY',
   navLibrary: '~LIBRARY',
   navVoices: '~VOICES',
-  // The masthead avatar shows the account's first-name initial — "K"
-  // for this test account. Not a stable general-purpose selector (would
-  // need to be parameterized per account), but fine for this suite.
-  avatar: '~K',
 };
+
+// Mirrors the app's own avatar rule (Audiobook-mobile lib/widgets/
+// mw_widgets.dart MwAvatar): a label of 1–2 chars is shown uppercased as
+// already-initials, anything longer shows just its first letter. The Home
+// masthead passes the first name — so "Md" renders "MD", "Kazi" renders "K".
+export function avatarInitials(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return '?';
+  return trimmed.length <= 2 ? trimmed.toUpperCase() : trimmed[0].toUpperCase();
+}
 
 export class HomeScreen extends BaseMobileScreen {
   async isDisplayed(): Promise<boolean> {
     return this.isVisible(SELECTORS.greeting);
+  }
+
+  waitDisplayed(timeout?: number): Promise<boolean> {
+    return this.waitVisible(SELECTORS.greeting, timeout);
   }
 
   async getGreetingText(): Promise<string> {
@@ -91,8 +101,17 @@ export class HomeScreen extends BaseMobileScreen {
     await this.click(SELECTORS.navHome);
   }
 
+  /** The name the greeting addresses ("Good afternoon, Md" → "Md"). */
+  async getGreetingName(): Promise<string> {
+    const greeting = await this.getGreetingText();
+    return greeting.slice(greeting.indexOf(',') + 1).trim();
+  }
+
+  // Derived from the live greeting rather than hardcoded, so it follows
+  // whichever account MOBILE_TEST_EMAIL points at.
   async openProfile() {
-    await this.click(SELECTORS.avatar);
+    const initials = avatarInitials(await this.getGreetingName());
+    await this.click(`~${initials}`);
   }
 
   // With noReset:true, a new Appium session attaches to whatever screen

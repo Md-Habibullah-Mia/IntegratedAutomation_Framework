@@ -150,20 +150,25 @@ jobs:
           if [ "$apk_file" != "apps/memorywave_v2.apk" ]; then
             mv "$apk_file" apps/memorywave_v2.apk
           fi
-      # Only login.spec.ts and registration.spec.ts: every other mobile spec
-      # (audiobooks/home/library/profile/vault/voices) assumes the app is
-      # already past "First-Login Verification" — a live face + voice
-      # liveness check gated by a LOCAL, per-device/per-app-install flag
-      # (auth_service.dart's isVerified), not anything tied to the account
-      # server-side. A fresh CI emulator has never passed it, no matter how
-      # provisioned the account is, and it cannot be automated without real
-      # camera/mic input (confirmed: not something CI can do — see
-      # login.spec.ts's "valid credentials" test and the CHANGELOG/
-      # QA_WORK_LOG open question it references). login.spec.ts and
-      # registration.spec.ts only exercise client-side validation up to
-      # that boundary, so they're the only specs that are CI-safe today.
-      # Run the full suite manually against a real device/persistent
-      # emulator that's already been verified once by a human.
+      # Three phases, one emulator, in this order:
+      # 1. login.spec.ts, `pm clear`, then registration.spec.ts — each on a
+      #    clean app (both need the logged-out auth screen). With
+      #    noReset:true each leaves the app where it ended: login's last test
+      #    really signs in (registration then found no form, 4/4 failed), and
+      #    registration leaves its own screen up (login then found no
+      #    "Sign in", 6/6 failed). Verified 2026-09-30: both pass after a clear.
+      # 2. mobile-verified-seed.ts --clear: drops whatever session
+      #    registration left, then pre-seeds the app's LOCAL
+      #    "First-Login Verification" flag (auth_service.dart's
+      #    verified_v1_<userId> in plain shared_preferences — no
+      #    server-side equivalent) via `adb root`, so the live face + voice
+      #    liveness check never shows. Must run with no Appium session up.
+      # 3. setup/verified-login.spec.ts does the one real UI login (tokens
+      #    live in Keystore-backed secure storage, so they can't be seeded),
+      #    landing straight on Home; the post-login specs then reuse that
+      #    session via noReset:true.
+      # `target: google_apis` (not google_apis_playstore) is required —
+      # Play Store images refuse `adb root`.
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -172,7 +177,13 @@ jobs:
           avd-name: Odiobuk_Pixel_7_API_34
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: npm run test:mobile -- --spec ./src/mobile/tests/login.spec.ts --spec ./src/mobile/tests/registration.spec.ts
+          script: |
+            npm run test:mobile -- --spec ./src/mobile/tests/login.spec.ts
+            adb shell pm clear com.ad.audio_book
+            npm run test:mobile -- --spec ./src/mobile/tests/registration.spec.ts
+            npx ts-node --transpile-only src/utils/mobile-verified-seed.ts --clear
+            npm run test:mobile -- --spec ./src/mobile/setup/verified-login.spec.ts
+            npm run test:mobile -- --spec ./src/mobile/tests/home.spec.ts --spec ./src/mobile/tests/library.spec.ts --spec ./src/mobile/tests/audiobooks.spec.ts --spec ./src/mobile/tests/voices.spec.ts --spec ./src/mobile/tests/profile.spec.ts --spec ./src/mobile/tests/vault.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
