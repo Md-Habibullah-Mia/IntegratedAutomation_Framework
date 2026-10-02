@@ -60,4 +60,47 @@ test.describe.serial('Smoke - Profile (You)', () => {
     await expect(profilePage.deleteButton).toBeEnabled();
     // Deliberately not clicked — this account is left intact.
   });
+
+  test('TC-024 - Default playback speed and the "audiobook ready" email setting are saved', async () => {
+    // develop 2026-10-02: Profile → Default speed (all devices) and "Email me
+    // when an audiobook I asked for is ready". Both are put back afterwards.
+    const page = profilePage.page;
+    await profilePage.goto();
+    await profilePage.verifyLoaded();
+    const speed = page.locator('#default-speed');
+    const readyEmail = page.getByRole('checkbox', { name: 'Email me when an audiobook I asked for is ready' });
+    await expect(speed).toBeVisible();
+    await expect(readyEmail).toBeVisible();
+
+    const originalSpeed = await speed.inputValue();
+    const originalEmail = await readyEmail.isChecked();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const options = await speed.locator('option').evaluateAll((os: any[]) => os.map((o) => o.value as string));
+    const newSpeed = options.find((v) => v !== originalSpeed)!;
+
+    // The checkbox is controlled by the saved profile: a click sends the
+    // change and the box flips once the server answers (not immediately), so
+    // click and wait for the new state instead of setChecked().
+    const toggleReadyEmail = async (want: boolean) => {
+      await expect(readyEmail).toBeEnabled({ timeout: 10000 });
+      if ((await readyEmail.isChecked()) !== want) await readyEmail.click();
+      await expect(readyEmail).toBeChecked({ checked: want, timeout: 10000 });
+    };
+
+    try {
+      await speed.selectOption(newSpeed);
+      await expect(speed).toBeEnabled({ timeout: 10000 }); // disabled while saving
+      await toggleReadyEmail(!originalEmail);
+
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await profilePage.verifyLoaded();
+      await expect(speed).toHaveValue(newSpeed);
+      await expect(readyEmail).toBeChecked({ checked: !originalEmail });
+    } finally {
+      // Shared account: put both back.
+      await speed.selectOption(originalSpeed).catch(() => {});
+      await expect(speed).toBeEnabled({ timeout: 10000 }).catch(() => {});
+      await toggleReadyEmail(originalEmail).catch(() => {});
+    }
+  });
 });

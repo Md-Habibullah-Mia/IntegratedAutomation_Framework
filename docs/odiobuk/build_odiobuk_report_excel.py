@@ -28,7 +28,9 @@ PASS, FAIL, SKIP, BLOCKED = "Pass", "Fail", "Skipped", "Blocked"
 
 # ------------------------------------------------------------------ Web
 WEB_MODULES = {
-    "registration.spec.ts": "Registration",
+    "registration.spec.ts": "Registration & first run",
+    "account-recovery.spec.ts": "Account recovery (signed out)",
+    "plans.spec.ts": "Plans & Premium",
     "login.spec.ts": "Login",
     "home.spec.ts": "Home",
     "library.spec.ts": "Library",
@@ -43,6 +45,7 @@ WEB_MODULES = {
 # Notes added after reading the run (keyed by TC ID); failures get their
 # error text automatically.
 SHARED = "Shared session (the run's single admin sign-in)."
+NEW = "NEW (develop feature). "
 WEB_NOTES = {
     "TC-001": ("Creates the run's one new account (sign-up is the test). Sign-up now lands on a new /welcome step "
                "(\"What brings you here?\"), skipped as a user can."),
@@ -59,6 +62,20 @@ WEB_NOTES = {
                "loads a moment after the select appears); fixed to wait for it, re-run alone and passed."),
     "SEC-001": ("Needs the owner + an unrelated non-admin account (cross-account check), so it signs those in itself. "
                 "Unrelated account now gets HTTP 403 for the owner's HH2 preview — issue #13 is FIXED."),
+    # New 2026-10-02, from the develop branch's features (AiSolutionsUSA/Audiobook).
+    "TC-016": NEW + "Public page, no sign-in. Unregistered address → neutral \"Check your email\" (no account "
+              "enumeration); no email goes to a real person.",
+    "TC-017": NEW + "Public page. No token → \"Request a new link\", no password form.",
+    "TC-018": NEW + "Public page. Missing token → \"missing its token\" + \"Send a new link\"; bogus token → invalid/expired.",
+    "TC-019": NEW + "Public page. Show-password toggle flips aria-pressed and the input type, both ways.",
+    "TC-020": NEW + "On TC-001's new account: Continue with no choice is refused; \"Listen to audiobooks\" → Library.",
+    "TC-021": NEW + ("On TC-001's new Free account (staff never see it): \"Today: N of M audiobooks · up to X "
+                     "characters each\" + \"Premium allows more a day →\". Nothing generated."),
+    "TC-022": NEW + "On TC-001's new unconfirmed account. \"Resend link\" deliberately not clicked (would send real email).",
+    "TC-023": NEW + SHARED + " Free + Premium cards with server-worded perks; empty and made-up codes refused; plan unchanged.",
+    "TC-024": NEW + SHARED + (" Speed + \"audiobook ready\" email both persist across reload, then restored. "
+                              "First attempt failed on a test issue (the checkbox flips only after the server "
+                              "saves); fixed and re-run alone."),
 }
 # Tests whose outcome is decided by something outside the test (status, note).
 WEB_OVERRIDES = {}
@@ -73,6 +90,10 @@ def web_rows(report_paths):
         if tc in by_id:
             by_id[tc].update(status=status, note=note)
     order = lambda r: (r["id"].startswith("SEC"), int(re.sub(r"\D", "", r["id"]) or 0), r["id"])
+    # The 'type' of the new feature tests reads better as what they are.
+    for r in by_id.values():
+        if r["id"] in ("TC-016", "TC-017", "TC-018", "TC-019", "TC-020", "TC-021", "TC-022", "TC-023", "TC-024"):
+            r["type"] = "New feature"
     return sorted(by_id.values(), key=order)
 
 
@@ -247,6 +268,12 @@ FINDINGS = [
      "older refresh cookie signs the browser out.",
      "Found while sharing one sign-in across the run; the test session helper now always carries the latest cookie.",
      "Not a bug (good practice)"),
+    ("F-11", "Web · New features (develop, 2026-10-02)", "Info",
+     "Live site already runs develop's new features: password reset, email confirmation + banner, show-password, "
+     "welcome step, Plans/Premium by access code, Free-plan daily allowance (2/day, 500 chars; Premium 5/day, "
+     "1,000 chars; one at a time), default speed and audiobook-ready email settings.",
+     "9 new tests TC-016…TC-024, all pass. Staff/admin accounts are exempt from the daily allowance (not shown).",
+     "Covered"),
     ("F-10", "Web · Admin account", "Low",
      "The admin account shows \"Confirm your email address\" on every page (admin@gmail.com is unconfirmed).",
      "Banner seen on Voices / narration pages, 2026-10-02.", "Open — confirm the admin email"),
