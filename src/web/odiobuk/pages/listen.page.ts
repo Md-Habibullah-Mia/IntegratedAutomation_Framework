@@ -15,11 +15,15 @@ export class ListenPage {
     this.errorMessage = page.locator('.error-box');
   }
 
-  /** A house voice is auto-selected on load so a brand-new account always has one. */
+  /**
+   * A voice is auto-selected once the account's voices load. The select
+   * renders first (briefly "No voices available") and GET /api/voices fills
+   * it a moment later, so wait for a value rather than reading it at once
+   * (read-at-once failed on 2026-10-02 although the list then had 2 voices).
+   */
   async verifyHouseVoicePreselected() {
     await expect(this.voiceSelect).toBeVisible({ timeout: 30000 });
-    const value = await this.voiceSelect.inputValue();
-    expect(value).not.toBe('');
+    await expect(this.voiceSelect).not.toHaveValue('', { timeout: 30000 });
   }
 
   async generate() {

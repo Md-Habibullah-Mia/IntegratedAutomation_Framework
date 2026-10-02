@@ -1,49 +1,44 @@
 import { test, expect } from '@playwright/test';
-import { RegistrationPage } from '@web/odiobuk/pages/registration.page';
-import { HomePage } from '@web/odiobuk/pages/home.page';
 import { ProfilePage } from '@web/odiobuk/pages/profile.page';
+import { closeSharedSession, openSharedSession, sharedAccount } from '@utils/odiobuk-session';
 
-const PASSWORD = 'Str0ngP@ssword2026!';
+const { email: EMAIL, password: PASSWORD } = sharedAccount();
 
-// Single registration/login for the whole file. TC-011 renames the account
-// and TC-012 only checks the delete button's enable state (never actually
-// clicks delete), so sharing one account is safe — nothing here conflicts.
+// Uses the run's shared admin session — no sign-in of its own. TC-011
+// renames the account and puts the original name back; TC-012 only checks
+// the delete button's enable state (never clicks delete).
 test.describe.serial('Smoke - Profile (You)', () => {
   let context: import('@playwright/test').BrowserContext;
-  let page: import('@playwright/test').Page;
   let profilePage: ProfilePage;
-  let email: string;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    page = await context.newPage();
-
-    email = `qa_profile_${Date.now()}@test.com`;
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA Profile', email, PASSWORD);
-    await homePage.verifyLoaded();
-
-    profilePage = new ProfilePage(page);
+    const session = await openSharedSession(browser);
+    context = session.context;
+    profilePage = new ProfilePage(session.page);
   });
 
   test.afterAll(async () => {
-    await context.close();
+    await closeSharedSession(context);
   });
 
   test('TC-011 - Updating the display name persists across a reload', async () => {
     await profilePage.goto();
     await profilePage.verifyLoaded();
 
-    await expect(profilePage.page.getByText(email).first()).toBeVisible();
+    await expect(profilePage.page.getByText(EMAIL!).first()).toBeVisible();
+    const originalName = await profilePage.displayNameInput.inputValue();
 
     const newName = `QA Renamed ${Date.now()}`;
-    await profilePage.setDisplayName(newName);
-
-    await profilePage.page.reload({ waitUntil: 'domcontentloaded' });
-    await profilePage.verifyLoaded();
-    await expect(profilePage.displayNameInput).toHaveValue(newName);
+    try {
+      await profilePage.setDisplayName(newName);
+      await profilePage.page.reload({ waitUntil: 'domcontentloaded' });
+      await profilePage.verifyLoaded();
+      await expect(profilePage.displayNameInput).toHaveValue(newName);
+    } finally {
+      // Shared account: put its name back.
+      await profilePage.setDisplayName(originalName);
+      await profilePage.page.waitForTimeout(1000);
+    }
   });
 
   test('TC-012 - Delete account only enables with the password and "DELETE" typed exactly', async () => {
@@ -57,7 +52,7 @@ test.describe.serial('Smoke - Profile (You)', () => {
     await profilePage.deleteConfirmInput.fill('DELETE');
     await expect(profilePage.deleteButton).toBeDisabled();
 
-    await profilePage.deletePasswordInput.fill(PASSWORD);
+    await profilePage.deletePasswordInput.fill(PASSWORD!);
     await profilePage.deleteConfirmInput.fill('delete');
     await expect(profilePage.deleteButton).toBeDisabled();
 

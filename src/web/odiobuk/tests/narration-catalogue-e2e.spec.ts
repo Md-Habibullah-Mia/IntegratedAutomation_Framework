@@ -15,45 +15,41 @@
 // cleanly end to end (~2.5 min, mostly generation).
 
 import { test, expect } from '@playwright/test';
-import { RegistrationPage } from '@web/odiobuk/pages/registration.page';
-import { HomePage } from '@web/odiobuk/pages/home.page';
 import { LibraryPage } from '@web/odiobuk/pages/library.page';
 import { ListenPage } from '@web/odiobuk/pages/listen.page';
 import { AudiobookDetailPage } from '@web/odiobuk/pages/audiobook-detail.page';
+import { closeSharedSession, openSharedSession } from '@utils/odiobuk-session';
 
-const PASSWORD = 'Str0ngP@ssword2026!';
 const GENERATION_TIMEOUT_MS = 20 * 60 * 1000;
 
 test.describe('E2E - Catalogue narration journey', () => {
-  test('TC-015 - Narrate a free catalogue title with a house voice and wait for it to finish @slow', async ({ page }) => {
+  test('TC-015 - Narrate a free catalogue title with a house voice and wait for it to finish @slow', async ({ browser }) => {
     test.setTimeout(GENERATION_TIMEOUT_MS + 5 * 60 * 1000);
 
-    // 1. Login (a fresh registration lands authenticated).
-    const email = `qa_e2ecat_${Date.now()}@test.com`;
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA E2E Catalogue', email, PASSWORD);
-    await homePage.verifyLoaded();
+    // 1. The run's shared admin session — no sign-in of its own.
+    const { context, page } = await openSharedSession(browser);
+    try {
+      // 2. Pick a free, not-yet-narrated title from the Books Catalogue.
+      const libraryPage = new LibraryPage(page);
+      await libraryPage.goto();
+      await libraryPage.verifyLoaded();
+      await expect(libraryPage.firstNarrateButton).toBeVisible({ timeout: 30000 });
+      await libraryPage.firstNarrateButton.click();
 
-    // 2. Pick a free, not-yet-narrated title from the Books Catalogue.
-    const libraryPage = new LibraryPage(page);
-    await libraryPage.goto();
-    await libraryPage.verifyLoaded();
-    await expect(libraryPage.firstNarrateButton).toBeVisible({ timeout: 30000 });
-    await libraryPage.firstNarrateButton.click();
+      // 3. Add a voice — a house voice is auto-selected for an account that owns none.
+      const listenPage = new ListenPage(page);
+      await listenPage.verifyHouseVoicePreselected();
 
-    // 3. Add a voice — a house voice is auto-selected for an account that owns none.
-    const listenPage = new ListenPage(page);
-    await listenPage.verifyHouseVoicePreselected();
+      // 4. Create the audiobook and wait for the queue to actually finish it.
+      await listenPage.generate();
+      await listenPage.waitForGenerationToFinish(GENERATION_TIMEOUT_MS);
 
-    // 4. Create the audiobook and wait for the queue to actually finish it.
-    await listenPage.generate();
-    await listenPage.waitForGenerationToFinish(GENERATION_TIMEOUT_MS);
-
-    // 5. Confirm the finished narration is playable.
-    const detailPage = new AudiobookDetailPage(page);
-    await detailPage.waitForCompletion(60000);
-    await expect(detailPage.doneBadge).toBeVisible();
+      // 5. Confirm the finished narration is playable.
+      const detailPage = new AudiobookDetailPage(page);
+      await detailPage.waitForCompletion(60000);
+      await expect(detailPage.doneBadge).toBeVisible();
+    } finally {
+      await closeSharedSession(context);
+    }
   });
 });

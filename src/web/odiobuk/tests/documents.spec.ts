@@ -4,29 +4,27 @@ import * as os from 'os';
 import * as path from 'path';
 import { AdminPdfsPage } from '@web/odiobuk/pages/admin-pdfs.page';
 import { buildMinimalPdf } from '@utils/pdf-fixture';
-import { loginAsAdmin } from '@utils/admin-session';
+import { closeSharedSession, openSharedSession } from '@utils/odiobuk-session';
 
 // PDF upload lives at Admin · PDF Catalogue (/admin/pdfs) on this deployment,
-// not a personal per-user page — see src/utils/admin-session.ts and
-// admin-pdfs.page.ts. Upload creates a shared catalogue title (draft), which
-// this suite cleans up afterwards so repeated runs don't pollute the
-// catalogue that library.spec.ts / saved.spec.ts also read from.
+// not a personal per-user page (admin only — see admin-pdfs.page.ts). Upload
+// creates a shared catalogue title (draft), which this suite cleans up
+// afterwards so repeated runs don't pollute the catalogue that
+// library.spec.ts also reads from.
 //
-// Single admin login for the whole file — both test cases share it.
+// Uses the run's shared admin session — no sign-in of its own.
 test.describe.serial('Smoke - Upload PDF', () => {
   let context: import('@playwright/test').BrowserContext;
-  let page: import('@playwright/test').Page;
   let adminPdfsPage: AdminPdfsPage;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    page = await context.newPage();
-    await loginAsAdmin(page);
-    adminPdfsPage = new AdminPdfsPage(page);
+    const session = await openSharedSession(browser);
+    context = session.context;
+    adminPdfsPage = new AdminPdfsPage(session.page);
   });
 
   test.afterAll(async () => {
-    await context.close();
+    await closeSharedSession(context);
   });
 
   test('TC-010 - Admin · PDF Catalogue page loads with the upload form and title list', async () => {

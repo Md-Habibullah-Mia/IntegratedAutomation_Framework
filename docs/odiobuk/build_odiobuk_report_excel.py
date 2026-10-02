@@ -20,7 +20,8 @@ from openpyxl.utils import get_column_letter
 DOCS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB_RUN_DATE = "2026-10-02"
 MOBILE_RUN_DATE = "2026-09-30"
-WEB_ENV = "https://odiobuk.eastus2.cloudapp.azure.com (chromium, 1 worker)"
+WEB_ENV = ("https://odiobuk.eastus2.cloudapp.azure.com (chromium, 1 worker) · ONE admin sign-in shared by the whole "
+           "run; only sign-up, sign-in and the cross-account security test use their own accounts")
 MOBILE_ENV = "Android emulator Pixel 7 · API 34 (google_apis) · memorywave_v2.apk (release 'mobile-apk', 2026-09-22)"
 
 PASS, FAIL, SKIP, BLOCKED = "Pass", "Fail", "Skipped", "Blocked"
@@ -41,22 +42,26 @@ WEB_MODULES = {
 }
 # Notes added after reading the run (keyed by TC ID); failures get their
 # error text automatically.
-ADMIN_BLOCKED = ("Blocked: the admin test account (MOBILE_TEST_ADMIN_EMAIL) is rejected — UI \"Invalid email or "
-                 "password\", POST /api/auth/login → 401 (checked 2026-10-02). Needs the current admin credentials.")
-NETWORK_RERUN = ("First run hit a laptop network error (DNS ERR_NAME_NOT_RESOLVED / ERR_ABORTED) at the same moment as "
-                 "two other tests; re-run on its own and passed.")
+SHARED = "Shared session (the run's single admin sign-in)."
 WEB_NOTES = {
-    "TC-001": "Sign-up now lands on a new /welcome step (\"What brings you here?\"); tests skip it as a user can.",
-    "TC-007": NETWORK_RERUN,
-    "TC-008": NETWORK_RERUN,
-    "TC-009": "Did not run in the full run (serial file stopped at TC-008's network error); passed on re-run.",
-    "TC-012": "Test updated: deleting now also requires the account password; \"DELETE\" alone keeps the button disabled.",
-    "TC-015": "Real narration of a free catalogue title with a house voice — finished in ~5.6 min.",
-    "SEC-001": ("Re-targeted to the current voice (HH2) and a brand-new unrelated account (admin login is broken). "
-                "Unrelated account now gets HTTP 403 — the voice-preview authorization bug (issue #13) is FIXED."),
+    "TC-001": ("Creates the run's one new account (sign-up is the test). Sign-up now lands on a new /welcome step "
+               "(\"What brings you here?\"), skipped as a user can."),
+    "TC-002": "Signs in itself (sign-in is the test), with the shared admin account — no new account.",
+    "TC-002B": "Wrong password for the shared admin account → \"Invalid email or password\", stays signed out.",
+    "TC-003": SHARED, "TC-004": SHARED, "TC-005": SHARED, "TC-008": SHARED, "TC-009": SHARED, "TC-010": SHARED,
+    "TC-006": SHARED + " The saved title is un-saved afterwards, leaving the shared account as it was.",
+    "TC-007": "Reuses TC-001's brand-new account (no extra sign-up).",
+    "TC-011": SHARED + " The original display name is restored afterwards.",
+    "TC-012": SHARED + " Test updated: deleting now also requires the account password; \"DELETE\" alone keeps the button disabled.",
+    "TC-013": SHARED + " Real upload → publish → house-voice narration → done in ~1.6 min; draft title removed afterwards.",
+    "TC-014": SHARED + " Uploaded draft title removed afterwards.",
+    "TC-015": (SHARED + " Real narration finished in ~3.7 min. First run failed on a test timing issue (the voice list "
+               "loads a moment after the select appears); fixed to wait for it, re-run alone and passed."),
+    "SEC-001": ("Needs the owner + an unrelated non-admin account (cross-account check), so it signs those in itself. "
+                "Unrelated account now gets HTTP 403 for the owner's HH2 preview — issue #13 is FIXED."),
 }
 # Tests whose outcome is decided by something outside the test (status, note).
-WEB_OVERRIDES = {tc: (BLOCKED, ADMIN_BLOCKED) for tc in ("TC-003", "TC-010", "TC-014", "TC-013")}
+WEB_OVERRIDES = {}
 
 
 def web_rows(report_paths):
@@ -222,11 +227,10 @@ FINDINGS = [
     ("F-04", "Mobile · Audiobooks", "Info",
      "First Generate after install shows Android's notification-permission prompt over the \"Narration started\" dialog.",
      "Expected Android 13+ behaviour; tests now tap Allow.", "Not a bug"),
-    ("F-05", "Web · Test environment", "High",
-     "The admin test account can no longer sign in, blocking 4 admin-only web tests (Home as admin, PDF catalogue, "
-     "PDF upload, PDF → narration E2E).",
-     "admin account from MOBILE_TEST_ADMIN_EMAIL: UI \"Invalid email or password\"; POST /api/auth/login → 401 (2026-10-02).",
-     "Needs new credentials"),
+    ("F-05", "Web · Test environment", "Info",
+     "The old admin test account (admin@yourdomain.com) no longer signs in (401); the admin account is now "
+     "admin@gmail.com.",
+     "Switched to the new admin account on 2026-10-02; all 4 admin-only tests pass.", "Resolved"),
     ("F-06", "Web · Security", "High",
      "Voice-preview authorization (issue #13): an unrelated account could fetch another user's private voice preview.",
      "2026-10-02: a brand-new account requesting the test account's HH2 preview gets HTTP 403 — fixed.",
@@ -238,6 +242,14 @@ FINDINGS = [
     ("F-08", "Web · Profile", "Info",
      "Delete account now also asks for the account password (plus optional reason and the DELETE confirmation).",
      "Security improvement; TC-012 updated.", "Not a bug"),
+    ("F-09", "Web · Auth (session)", "Info",
+     "The sign-in is an in-memory access token plus an httpOnly refresh cookie that rotates on use — replaying an "
+     "older refresh cookie signs the browser out.",
+     "Found while sharing one sign-in across the run; the test session helper now always carries the latest cookie.",
+     "Not a bug (good practice)"),
+    ("F-10", "Web · Admin account", "Low",
+     "The admin account shows \"Confirm your email address\" on every page (admin@gmail.com is unconfirmed).",
+     "Banner seen on Voices / narration pages, 2026-10-02.", "Open — confirm the admin email"),
 ]
 
 # ------------------------------------------------------------------ Workbook

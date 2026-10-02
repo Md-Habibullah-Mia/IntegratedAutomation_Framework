@@ -1,45 +1,32 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '@web/odiobuk/pages/login.page';
-import { RegistrationPage } from '@web/odiobuk/pages/registration.page';
 import { HomePage } from '@web/odiobuk/pages/home.page';
+import { sharedAccount } from '@utils/odiobuk-session';
 
-const PASSWORD = 'Str0ngP@ssword2026!';
+// Signing in IS what these tests check, so each does its own sign-in (the
+// rest of the run reuses one shared session — see odiobuk-session.ts). They
+// use the shared account itself instead of registering new ones.
+const { email: EMAIL, password: PASSWORD } = sharedAccount();
 
 test.describe('Smoke - Login', () => {
+  test.skip(!EMAIL || !PASSWORD, 'MOBILE_TEST_ADMIN_EMAIL/PASSWORD not configured');
+
   test('TC-002 - Successful login with valid credentials', async ({ page }) => {
-    const email = `qa_${Date.now()}@test.com`;
-
-    // Self-contained: register a fresh account, log out, then log back in —
-    // no dependency on a fixed shared test account.
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA Login', email, PASSWORD);
-    await homePage.verifyLoaded();
-    await homePage.logout();
-
     const loginPage = new LoginPage(page);
+    const homePage = new HomePage(page);
     await loginPage.goto();
-    await loginPage.login(email, PASSWORD);
+    await loginPage.login(EMAIL!, PASSWORD!);
 
     await homePage.verifyLoaded();
   });
 
   test('TC-002B - Login with a wrong password shows no access', async ({ page }) => {
-    const email = `qa_${Date.now()}@test.com`;
-
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA Login Negative', email, PASSWORD);
-    await homePage.verifyLoaded();
-    await homePage.logout();
-
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login(email, 'TotallyWrongPassword123!');
+    await loginPage.login(EMAIL!, 'TotallyWrongPassword123!');
 
     // Wrong credentials must not reach the authenticated home page.
+    await expect(page.getByText('Invalid email or password')).toBeVisible({ timeout: 15000 });
     await expect(page).not.toHaveURL(/\/$/, { timeout: 5000 });
   });
 });

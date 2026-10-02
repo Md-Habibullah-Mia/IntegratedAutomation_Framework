@@ -1,10 +1,10 @@
 // Full narration journey, end to end, against the real Admin · PDF Catalogue
 // flow (/admin/pdfs) — the actual current shape of PDF-sourced narration on
 // this deployment, not the old personal-document-upload flow this spec used
-// to assume. See src/utils/admin-session.ts and
-// src/web/odiobuk/pages/admin-pdfs.page.ts for how that was confirmed.
+// to assume. See src/web/odiobuk/pages/admin-pdfs.page.ts for how that was
+// confirmed.
 //
-// Flow: log in as admin -> upload a PDF as a draft catalogue title -> publish
+// Flow: shared admin session (src/utils/odiobuk-session.ts) -> upload a PDF as a draft catalogue title -> publish
 // it live -> generate its one shared house-voice narration -> poll until the
 // queue finishes it. Cleans the title up afterwards so repeated runs don't
 // pollute the shared catalogue that library.spec.ts / saved.spec.ts also read.
@@ -21,15 +21,15 @@ import * as os from 'os';
 import * as path from 'path';
 import { AdminPdfsPage } from '@web/odiobuk/pages/admin-pdfs.page';
 import { buildMinimalPdf } from '@utils/pdf-fixture';
-import { loginAsAdmin } from '@utils/admin-session';
+import { closeSharedSession, openSharedSession } from '@utils/odiobuk-session';
 
 const GENERATION_TIMEOUT_MS = 10 * 60 * 1000;
 
 test.describe('E2E - Full narration journey', () => {
-  test('TC-013 - Upload a PDF, publish it, generate its narration and wait for the queue to finish it @slow', async ({ page }) => {
+  test('TC-013 - Upload a PDF, publish it, generate its narration and wait for the queue to finish it @slow', async ({ browser }) => {
     test.setTimeout(GENERATION_TIMEOUT_MS + 2 * 60 * 1000);
 
-    await loginAsAdmin(page);
+    const { context, page } = await openSharedSession(browser);
 
     const pdfPath = path.join(os.tmpdir(), `odiobuk-e2e-${Date.now()}.pdf`);
     const pdfBytes = await buildMinimalPdf(
@@ -68,6 +68,7 @@ test.describe('E2E - Full narration journey', () => {
       await adminPdfsPage.goto();
       await adminPdfsPage.remove(title).catch(() => {});
       fs.unlinkSync(pdfPath);
+      await closeSharedSession(context);
     }
   });
 });

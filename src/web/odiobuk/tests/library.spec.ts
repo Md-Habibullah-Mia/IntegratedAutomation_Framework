@@ -1,35 +1,23 @@
 import { test, expect } from '@playwright/test';
-import { RegistrationPage } from '@web/odiobuk/pages/registration.page';
-import { HomePage } from '@web/odiobuk/pages/home.page';
 import { LibraryPage } from '@web/odiobuk/pages/library.page';
 import { SavedPage } from '@web/odiobuk/pages/saved.page';
+import { closeSharedSession, openSharedSession } from '@utils/odiobuk-session';
 
-const PASSWORD = 'Str0ngP@ssword2026!';
-
-// Single registration/login for the whole file — every test case below reads
-// the shared catalogue (or, for TC-006, favourites one title in it), none of
-// which conflicts with the others, so one account/session covers all three.
+// Uses the run's shared admin session — no sign-in of its own. Every test
+// reads the shared catalogue; TC-006 favourites one title and un-saves it
+// again so the shared account is left as it was.
 test.describe.serial('Smoke - Library', () => {
   let context: import('@playwright/test').BrowserContext;
   let page: import('@playwright/test').Page;
   let libraryPage: LibraryPage;
 
   test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    page = await context.newPage();
-
-    const email = `qa_library_${Date.now()}@test.com`;
-    const registrationPage = new RegistrationPage(page);
-    const homePage = new HomePage(page);
-    await registrationPage.goto();
-    await registrationPage.register('QA Library', email, PASSWORD);
-    await homePage.verifyLoaded();
-
+    ({ context, page } = await openSharedSession(browser));
     libraryPage = new LibraryPage(page);
   });
 
   test.afterAll(async () => {
-    await context.close();
+    await closeSharedSession(context);
   });
 
   test('TC-004 - Library catalogue loads with browsable titles and tabs', async () => {
@@ -65,16 +53,23 @@ test.describe.serial('Smoke - Library', () => {
     await libraryPage.goto();
     await libraryPage.verifyLoaded();
 
-    const title = (await libraryPage.rowTitles.first().textContent())?.trim() as string;
-    expect(title).toBeTruthy();
+    // A title the shared account hasn't saved yet, so the save is real.
+    const unsaved = page.locator('.list-item').filter({ has: page.getByTitle('Save', { exact: true }) }).first();
+    await expect(unsaved).toBeVisible();
+    const target = (await unsaved.locator('strong').first().textContent())?.trim() as string;
+    expect(target).toBeTruthy();
 
-    await libraryPage.toggleFavourite(title);
-    await expect(libraryPage.row(title).getByTitle('Remove from saved')).toBeVisible();
+    await libraryPage.toggleFavourite(target);
+    await expect(libraryPage.row(target).getByTitle('Remove from saved')).toBeVisible();
 
     const savedPage = new SavedPage(page);
-    await savedPage.goto();
-    await savedPage.verifyLoaded();
-
-    await expect(savedPage.row(title)).toBeVisible();
+    try {
+      await savedPage.goto();
+      await savedPage.verifyLoaded();
+      await expect(savedPage.row(target)).toBeVisible();
+    } finally {
+      // Put the shared account back as it was.
+      await savedPage.unsave(target).catch(() => {});
+    }
   });
 });
