@@ -8,6 +8,7 @@ export class ProfilePage {
   readonly acknowledgeButton: Locator;
   readonly exportButton: Locator;
   readonly deleteConfirmInput: Locator;
+  readonly deletePasswordInput: Locator;
   readonly deleteButton: Locator;
 
   constructor(page: Page) {
@@ -18,6 +19,8 @@ export class ProfilePage {
     this.acknowledgeButton = page.getByRole('button', { name: /Acknowledge|Reset acknowledgement/ });
     this.exportButton = page.getByRole('button', { name: /Export my data/ });
     this.deleteConfirmInput = page.getByPlaceholder('Type DELETE to confirm');
+    // Added 2026-10: deleting now also asks for the account password.
+    this.deletePasswordInput = page.getByRole('textbox', { name: /^Your password/ });
     this.deleteButton = page.getByRole('button', { name: 'Delete my account' });
   }
 

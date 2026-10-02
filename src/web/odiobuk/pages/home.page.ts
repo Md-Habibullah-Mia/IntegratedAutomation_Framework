@@ -23,8 +23,22 @@ export class HomePage {
   }
 
   async verifyLoaded() {
+    // Since 2026-10, sign-in/sign-up can first land on /welcome ("What
+    // brings you here?" — Listen / Preserve a voice / Feel close to someone,
+    // with Continue / Skip for now). It only changes what Home shows first
+    // and is editable in Profile, so skip it the way a user can.
+    await this.page.waitForURL((u) => /^\/(welcome)?$/.test(u.pathname), { timeout: 30000 });
+    if (new URL(this.page.url()).pathname === '/welcome') await this.skipWelcomeIntent();
     await expect(this.page).toHaveURL(/\/$/, { timeout: 30000 });
     await expect(this.welcomeHeading).toBeVisible({ timeout: 30000 });
+  }
+
+  /** The post-sign-in "What brings you here?" step (/welcome). */
+  readonly welcomeIntentQuestion = () => this.page.getByText('What brings you here?');
+
+  async skipWelcomeIntent() {
+    await expect(this.welcomeIntentQuestion()).toBeVisible({ timeout: 15000 });
+    await this.page.getByRole('button', { name: 'Skip for now' }).click();
   }
 
   async verifyNavigationVisible() {
