@@ -6,6 +6,7 @@
     "test:web": "playwright test --config=playwright.config.ts",
     "test:web:medco": "playwright test --config=playwright.config.ts --project=medco-*",
     "test:web:massive-market": "playwright test --config=playwright.config.ts --project=massive-market-*",
+    "test:web:mm-v2": "playwright test --config=playwright.config.ts --project=massive-market-v2-chromium --workers=1",
     "test:web:headed": "playwright test --config=playwright.config.ts --headed",
     "test:web:ui": "playwright test --config=playwright.config.ts --ui",
     "test:mobile": "wdio run wdio.conf.ts",

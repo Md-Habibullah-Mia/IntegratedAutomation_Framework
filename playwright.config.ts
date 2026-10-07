@@ -6,6 +6,9 @@ import { config } from './src/config/env.config';
 const sites = [
   { key: 'medco', testDir: './src/web/medco/tests', baseURL: config.medcoWebBaseUrl },
   { key: 'massive-market', testDir: './src/web/massive-market/tests', baseURL: config.massiveMarketWebBaseUrl },
+  // Cognito-era UI (Oct 2026): marketer, merchant, admin (MFA) and Bangla. Run with --workers=1 —
+  // the specs share one cached session per role (see src/utils/mm-session.ts).
+  { key: 'massive-market-v2', testDir: './src/web/massive-market-v2/tests', baseURL: config.massiveMarketWebBaseUrl },
   { key: 'odiobuk', testDir: './src/web/odiobuk/tests', baseURL: config.odiobukWebBaseUrl },
   { key: 'attorney', testDir: './src/web/attorney/tests', baseURL: config.attorneyWebBaseUrl },
 ];

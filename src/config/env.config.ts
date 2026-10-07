@@ -21,6 +21,13 @@ export interface EnvConfig {
   massiveMarket: {
     adminEmail?: string;
     adminPassword?: string;
+    // Base32 authenticator key — the admin console asks for a TOTP code at every sign-in.
+    adminTotpSecret?: string;
+    // Cognito-era accounts used by the v2 suite (created by sign-up / merchant approval).
+    marketerEmail?: string;
+    marketerPassword?: string;
+    merchantEmail?: string;
+    merchantPassword?: string;
   };
   mobile: {
     platform: 'android' | 'ios';
@@ -68,6 +75,11 @@ export const config: EnvConfig = {
   massiveMarket: {
     adminEmail: process.env.MASSIVE_MARKET_ADMIN_EMAIL,
     adminPassword: process.env.MASSIVE_MARKET_ADMIN_PASSWORD,
+    adminTotpSecret: process.env.MASSIVE_MARKET_ADMIN_TOTP_SECRET,
+    marketerEmail: process.env.MM_FUNC_EMAIL,
+    marketerPassword: process.env.MM_FUNC_PASSWORD,
+    merchantEmail: process.env.MM_MERCHANT_EMAIL,
+    merchantPassword: process.env.MM_MERCHANT_PASSWORD,
   },
   mobile: {
     platform: (process.env.MOBILE_PLATFORM as 'android' | 'ios') || 'android',
